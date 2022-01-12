@@ -3,15 +3,15 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define CHECK(cond)                                                              \
-do                                                                               \
-{                                                                                \
-    if (!cond)                                                                   \
-    {                                                                            \
-        fprintf(stderr, "Error code: %d, line: %d\n", GetLastError(), __LINE__); \
-        ExitProcess(1);                                                          \
-    }                                                                            \
-}                                                                                \
+#define CHECK(cond)                                                               \
+do                                                                                \
+{                                                                                 \
+    if (!cond)                                                                    \
+    {                                                                             \
+        fprintf(stderr, "Error code: %ld, line: %d\n", GetLastError(), __LINE__); \
+        ExitProcess(1);                                                           \
+    }                                                                             \
+}                                                                                 \
 while (0)
 
 uintptr_t GetModuleBaseAddress(DWORD procId, const char* modName)
@@ -69,36 +69,36 @@ int main()
     DWORD process_id = GetProcId("Inscryption.exe");
     CHECK(process_id != 0);
     HANDLE process_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, process_id);
-    CHECK(process_handle != NULL);
+    CHECK(process_handle != 0);
     uintptr_t unity_dll_base = GetModuleBaseAddress(process_id, "UnityPlayer.dll");
     const uint32_t new_enemys_hits = 0;
     while (1)
     {
-        uint32_t base = unity_dll_base + 0x0127E400;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        uintptr_t base = unity_dll_base + 0x0127E400;
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x40;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x618;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x3c;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x10;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x8;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x18;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x10;
         DWORD enemys_hits;
-        CHECK(ReadProcessMemory(process_handle, (LPVOID)base, &enemys_hits, sizeof(base), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPVOID)base, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
         if (enemys_hits != 0)
         {
             DWORD oldprotect;
-            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(base), PAGE_EXECUTE_READWRITE, &oldprotect) != 0);
+            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &oldprotect) != 0);
             CHECK(WriteProcessMemory(process_handle, (LPVOID)base, &new_enemys_hits, sizeof(new_enemys_hits), nullptr) != 0);
-            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(base), oldprotect, &oldprotect) != 0);
+            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(uint32_t), oldprotect, &oldprotect) != 0);
         }
-        printf("enemy's hits: %u\r", enemys_hits);
+        printf("enemy's hits: %lu\r", enemys_hits);
         fflush(stdout);
         Sleep(2000);
     }
