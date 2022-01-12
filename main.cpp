@@ -89,19 +89,19 @@ int main()
     HANDLE process_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, process_id);
     CHECK(process_handle);
     uintptr_t unity_player_dll_base = GetModuleBaseAddress(process_id, "UnityPlayer.dll");
-    const uint32_t new_enemys_hits = 0;
+    const uint32_t new_damage_dealt = 128;
     const uintptr_t base = unity_player_dll_base + 0x0127E340;
-    const uintptr_t offsets[] = { 0x20, 0x618, 0x3c, 0x10, 0x8, 0x18, 0x10 };
+    const uintptr_t offsets[] = { 0x20, 0x618, 0x3c, 0x10, 0x8, 0x18, 0x14 };
     while (1)
     {
-        uintptr_t enemys_hits_address = external_multi_level_pointer_dereference(process_handle, base, sizeof(uint32_t), offsets);
-        DWORD enemys_hits;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)enemys_hits_address, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
-        if (enemys_hits != 0)
-            external_memory_patch(process_handle, (LPVOID)enemys_hits_address, &new_enemys_hits, sizeof(uint32_t));
-        printf("enemy's hits: %lu\r", enemys_hits);
-        fflush(stdout);
-        Sleep(100);
+        uintptr_t damage_dealt_address = external_multi_level_pointer_dereference(process_handle, base, sizeof(uint32_t), offsets);
+        DWORD damage_dealt;
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)damage_dealt_address, &damage_dealt, sizeof(uint32_t), nullptr) != 0);
+        if (damage_dealt == 0)
+            external_memory_patch(process_handle, (LPVOID)damage_dealt_address, &new_damage_dealt, sizeof(uint32_t));
+        // printf("enemy's hits: %lu\r", damage_dealt);
+        // fflush(stdout);
+        Sleep(1000);
     }
     return 0;
 }
