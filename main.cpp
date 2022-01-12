@@ -90,7 +90,7 @@ int main()
         CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
         base += 0x10;
         DWORD enemys_hits;
-        CHECK(ReadProcessMemory(process_handle, (LPVOID)base, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
         if (enemys_hits != 0)
         {
             DWORD oldprotect;
