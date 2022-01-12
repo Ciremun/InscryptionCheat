@@ -64,43 +64,44 @@ DWORD GetProcId(const char* procName)
     return procId;
 }
 
+template<size_t N>
+uintptr_t external_multi_level_pointer_dereference(HANDLE hProc, uintptr_t base, size_t size, const uintptr_t (&offsets)[N])
+{
+    for (size_t i = 0; i < N; ++i) {
+        CHECK(ReadProcessMemory(hProc, (LPCVOID)base, &base, size, nullptr) != 0);
+        base += offsets[i];
+    }
+    return base;
+}
+
+void external_memory_patch(HANDLE hProc, LPVOID base, LPCVOID buffer, size_t size)
+{
+    DWORD oldprotect;
+    CHECK(VirtualProtectEx(hProc, base, size, PAGE_EXECUTE_READWRITE, &oldprotect) != 0);
+    CHECK(WriteProcessMemory(hProc, base, buffer, size, nullptr) != 0);
+    CHECK(VirtualProtectEx(hProc, base, size, oldprotect, &oldprotect) != 0);
+}
+
 int main()
 {
     DWORD process_id = GetProcId("Inscryption.exe");
     CHECK(process_id != 0);
     HANDLE process_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, process_id);
-    CHECK(process_handle != 0);
-    uintptr_t unity_dll_base = GetModuleBaseAddress(process_id, "UnityPlayer.dll");
+    CHECK(process_handle);
+    uintptr_t unity_player_dll_base = GetModuleBaseAddress(process_id, "UnityPlayer.dll");
     const uint32_t new_enemys_hits = 0;
+    const uintptr_t base = unity_player_dll_base + 0x0127E340;
+    const uintptr_t offsets[] = { 0x20, 0x618, 0x3c, 0x10, 0x8, 0x18, 0x10 };
     while (1)
     {
-        uintptr_t base = unity_dll_base + 0x0127E400;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x40;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x618;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x3c;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x10;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x8;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x18;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &base, sizeof(uint32_t), nullptr) != 0);
-        base += 0x10;
+        uintptr_t enemys_hits_address = external_multi_level_pointer_dereference(process_handle, base, sizeof(uint32_t), offsets);
         DWORD enemys_hits;
-        CHECK(ReadProcessMemory(process_handle, (LPCVOID)base, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
+        CHECK(ReadProcessMemory(process_handle, (LPCVOID)enemys_hits_address, &enemys_hits, sizeof(uint32_t), nullptr) != 0);
         if (enemys_hits != 0)
-        {
-            DWORD oldprotect;
-            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(uint32_t), PAGE_EXECUTE_READWRITE, &oldprotect) != 0);
-            CHECK(WriteProcessMemory(process_handle, (LPVOID)base, &new_enemys_hits, sizeof(new_enemys_hits), nullptr) != 0);
-            CHECK(VirtualProtectEx(process_handle, (LPVOID)base, sizeof(uint32_t), oldprotect, &oldprotect) != 0);
-        }
+            external_memory_patch(process_handle, (LPVOID)enemys_hits_address, &new_enemys_hits, sizeof(uint32_t));
         printf("enemy's hits: %lu\r", enemys_hits);
         fflush(stdout);
-        Sleep(2000);
+        Sleep(100);
     }
     return 0;
 }
