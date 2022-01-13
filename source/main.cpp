@@ -6,7 +6,7 @@
 int main()
 {
     DWORD process_id = GetProcId("Inscryption.exe");
-    IF(process_id != 0, "Couldn't get process id");
+    IF(process_id == 0, "Couldn't get process id");
     HANDLE process_handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, process_id);
     CHECK(process_handle);
     uintptr_t unity_player_dll_base = GetModuleBaseAddress(process_id, "UnityPlayer.dll");

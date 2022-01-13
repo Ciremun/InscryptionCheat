@@ -22,7 +22,7 @@ while (0)
 #define IF(condition, message)\
 do\
 {\
-    if (!condition)\
+    if (condition)\
     {\
         fprintf(stderr, "%s:%d: Error: %s", __FILE__, __LINE__, message);\
         ExitProcess(1);\
