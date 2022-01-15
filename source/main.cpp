@@ -21,14 +21,14 @@ int main()
 
     while (1)
     {
-        if (seconds_passed == 180)
+        if (seconds_passed == 60)
         {
             current_part = get_current_part(process_handle);
             seconds_passed = 0;
         }
         switch (current_part)
         {
-            case  1: { IF(1, "Not Implemented"); } break;
+            case  1: { instant_win(process_handle, base, part_1_damage_dealt_offsets); } break;
             case  2: { instant_win(process_handle, base, part_2_damage_dealt_offsets); } break;
             case  3: { instant_win(process_handle, base, part_3_damage_dealt_offsets); } break;
             default: { ExitProcess(1); } break;

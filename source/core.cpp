@@ -30,6 +30,7 @@ int get_current_part(HANDLE hProc)
         if (gwsave.start[i] == '\"' && memcmp(gwsave.start + i, "\"currentScene\": \"Part\"", 21) == 0)
         {
             current_part = gwsave.start[i + 21] - '0';
+            printf("current part: %d\n", current_part);
             goto end;
         }
     }
