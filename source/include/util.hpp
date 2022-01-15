@@ -1,9 +1,23 @@
 #pragma once
 
 #include <windows.h>
+
 #include <stdio.h>
+#include <stdint.h>
+
+struct File
+{
+    HANDLE hMap;
+    HANDLE handle;
+    size_t size;
+    uint8_t *start;
+};
 
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512]);
+File open_file(const char *path);
+int close_file(HANDLE handle);
+int map_file(File *f);
+int unmap_file(File f);
 
 #define CHECK(condition)\
 do\

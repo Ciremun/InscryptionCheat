@@ -2,6 +2,8 @@
 
 #include "process.hpp"
 
+int get_current_part(HANDLE hProc);
+
 template <size_t N>
 void instant_win(HANDLE hProc, uintptr_t base, const uintptr_t (&offsets)[N])
 {
