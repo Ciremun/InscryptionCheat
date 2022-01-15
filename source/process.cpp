@@ -60,8 +60,5 @@ void external_memory_patch(HANDLE hProc, LPVOID base, LPCVOID buffer, size_t siz
 
 void external_memory_read(HANDLE hProc, LPVOID base, LPVOID buffer, size_t size)
 {
-    // DWORD oldprotect;
-    // CHECK(VirtualProtectEx(hProc, base, size, PAGE_EXECUTE_READWRITE, &oldprotect) != 0);
     CHECK(ReadProcessMemory(hProc, (LPCVOID)base, buffer, size, nullptr) != 0);
-    // CHECK(VirtualProtectEx(hProc, base, size, oldprotect, &oldprotect) != 0);
 }
