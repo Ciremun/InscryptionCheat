@@ -12,8 +12,7 @@ void instant_win(HANDLE hProc, uintptr_t base, const uintptr_t (&offsets)[N])
     if (damage_dealt_address != 0)
     {
         uint8_t damage_dealt;
-        external_memory_read(hProc, (LPVOID)damage_dealt_address, &damage_dealt, sizeof(uint8_t));
-        if (damage_dealt == 0)
+        if (external_memory_read(hProc, (LPVOID)damage_dealt_address, &damage_dealt, sizeof(uint8_t)) && damage_dealt == 0)
             external_memory_patch(hProc, (LPVOID)damage_dealt_address, &new_damage_dealt, sizeof(uint8_t));
     }
 }

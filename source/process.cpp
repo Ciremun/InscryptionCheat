@@ -1,3 +1,8 @@
+#include <stdio.h>
+
+#include <windows.h>
+#include <psapi.h>
+
 #include "process.hpp"
 
 uintptr_t GetModuleBaseAddress(DWORD procId, const char* modName)
@@ -58,7 +63,16 @@ void external_memory_patch(HANDLE hProc, LPVOID base, LPCVOID buffer, size_t siz
     CHECK(VirtualProtectEx(hProc, base, size, oldprotect, &oldprotect) != 0);
 }
 
-void external_memory_read(HANDLE hProc, LPVOID base, LPVOID buffer, size_t size)
+int external_memory_read(HANDLE hProc, LPVOID base, LPVOID buffer, size_t size)
 {
+    PSAPI_WORKING_SET_EX_INFORMATION info;
+    info.VirtualAddress = base;
+    CHECK(QueryWorkingSetEx(hProc, &info, sizeof(info)) != 0);
+    if (info.VirtualAttributes.Valid == 0)
+    {
+        fprintf(stderr, "Warning: 0x%llx points to invalid memory page, aborting.\n", (uintptr_t)base);
+        return 0;
+    }
     CHECK(ReadProcessMemory(hProc, (LPCVOID)base, buffer, size, nullptr) != 0);
+    return 1;
 }
