@@ -21,25 +21,26 @@ int get_current_part(HANDLE hProc)
     }
 
     File gwsave = open_file(gwsave_path);
-    IF(gwsave.handle == INVALID_HANDLE_VALUE, "Couldn't open 'gwsave' file");
+    if (gwsave.handle == INVALID_HANDLE_VALUE)
+    {
+        printf("Info: Couldn't open 'gwsave' file, assuming part 1\n");
+        CHECK(close_file(gwsave.handle));
+        return 1;
+    }
+
     CHECK(map_file(&gwsave));
 
-    int current_part = 0;
+    int current_part = 1;
     for (int i = 0; i < 256; i++)
     {
         if (gwsave.start[i] == '\"' && memcmp(gwsave.start + i, "\"currentScene\": \"Part\"", 21) == 0)
         {
             current_part = gwsave.start[i + 21] - '0';
-            printf("current part: %d\n", current_part);
-            goto end;
+            printf("Info: current part: %d\n", current_part);
+            break;
         }
     }
 
-end:
-
-    CHECK(unmap_file(gwsave));
-    CHECK(close_file(gwsave.handle));
-
-    IF(current_part == 0, "Couldn't determine current part of the game");
+    CHECK(unmap_and_close_file(gwsave));
     return current_part;
 }

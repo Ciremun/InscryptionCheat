@@ -18,6 +18,7 @@ File open_file(const char *path);
 int close_file(HANDLE handle);
 int map_file(File *f);
 int unmap_file(File f);
+int unmap_and_close_file(File f);
 
 #define CHECK(condition)\
 do\

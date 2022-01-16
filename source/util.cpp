@@ -63,3 +63,8 @@ int unmap_file(File f)
         return 0;
     return 1;
 }
+
+int unmap_and_close_file(File f)
+{
+    return unmap_file(f) && close_file(f.handle);
+}
