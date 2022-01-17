@@ -18,10 +18,13 @@ for %%i in (%*) do (
     )
 )
 
+set ICEXE_BUILD=cl source/ic_inject.cpp /O2 /EHsc /Fe:ic.exe /std:c++17 /link /MACHINE:x86
+set ICDLL_BUILD=cl /DNDEBUG /O2 /EHsc /Fe:ic /nologo /W4 /Isource/include /Isource/include/imgui source/ic.cpp /link d3d11.lib source/lib/libMinHook.x86.lib /DLL /LTCG /MACHINE:x86 /OUT:ic.dll
+
 if defined IC_REBUILD goto :rebuild
 
-if not exist ic.dll call cl /DNDEBUG /O2 /EHsc /Fe:ic /nologo /W4 /Isource/include /Isource/include/imgui source/ic.cpp /link d3d11.lib source/lib/libMinHook.x86.lib /DLL /LTCG /MACHINE:x86 /OUT:ic.dll
-if not exist ic.exe call cl source/ic_inject.cpp /O2 /EHsc /Fe:ic.exe /std:c++17 /link /MACHINE:x86
+if not exist ic.exe call %ICEXE_BUILD%
+if not exist ic.dll call %ICDLL_BUILD%
 
 if defined IC_RUN goto :run
 
@@ -29,8 +32,8 @@ goto :eof
 
 :rebuild
 
-call cl /DNDEBUG /O2 /EHsc /Fe:ic /nologo /W4 /Isource/include /Isource/include/imgui source/ic.cpp /link d3d11.lib source/lib/libMinHook.x86.lib /DLL /LTCG /MACHINE:x86 /OUT:ic.dll
-call cl source/ic_inject.cpp /O2 /EHsc /Fe:ic.exe /std:c++17 /link /MACHINE:x86
+call %ICEXE_BUILD%
+call %ICDLL_BUILD%
 
 if not defined IC_RUN goto :eof
 
