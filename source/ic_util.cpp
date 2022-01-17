@@ -1,4 +1,4 @@
-#include "util.hpp"
+#include "ic_util.hpp"
 
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512])
 {

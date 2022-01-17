@@ -3,8 +3,8 @@
 #include <windows.h>
 #include <psapi.h>
 
-#include "core.hpp"
-#include "util.hpp"
+#include "ic_core.hpp"
+#include "ic_util.hpp"
 
 int get_current_part(HANDLE hProc)
 {

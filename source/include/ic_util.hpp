@@ -29,7 +29,6 @@ do\
         DWORD error_code = GetLastError();\
         GetErrorString(error_code, wszMsgBuff);\
         fprintf(stderr, "%s:%d: Error %d: %s", __FILE__, __LINE__, error_code, wszMsgBuff);\
-        ExitProcess(1);\
     }\
 }\
 while (0)
@@ -40,7 +39,6 @@ do\
     if (condition)\
     {\
         fprintf(stderr, "%s:%d: Error: %s", __FILE__, __LINE__, message);\
-        ExitProcess(1);\
     }\
 }\
 while (0)
