@@ -4,9 +4,6 @@
 #include <tlhelp32.h>
 
 #include "ic_util.hpp"
-#include "ic_process.hpp"
-
-uintptr_t GetModuleBaseAddress(const char* modName);
 
 template <typename T>
 void internal_memory_write(uintptr_t base, const T *buffer)

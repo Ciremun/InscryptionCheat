@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <psapi.h>
 
 #include <stdio.h>
 #include <stdint.h>
@@ -13,6 +14,7 @@ struct File
     uint8_t *start;
 };
 
+uintptr_t GetModuleBaseAddress(const char* modName);
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512]);
 File open_file(const char *path);
 int close_file(HANDLE handle);

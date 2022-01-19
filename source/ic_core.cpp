@@ -44,3 +44,32 @@ int get_current_part(HANDLE hProc)
     CHECK(unmap_and_close_file(gwsave));
     return current_part;
 }
+
+void write_to_damage_dealt(HANDLE hProc, uintptr_t unity_player_base, int current_part, uint8_t new_damage_dealt, uint8_t expected_damage_dealt_value)
+{
+    uintptr_t damage_dealt_address = 0;
+    switch (current_part)
+    {
+        case 1: {
+            damage_dealt_address = 
+                internal_multi_level_pointer_dereference(hProc, unity_player_base + part_1_base_offset, part_1_damage_dealt_offsets);
+        } break;
+        case 2: {
+            damage_dealt_address = 
+                internal_multi_level_pointer_dereference(hProc, unity_player_base + part_2_base_offset, part_2_damage_dealt_offsets);
+        } break;
+        case 3: {
+            damage_dealt_address = 
+                internal_multi_level_pointer_dereference(hProc, unity_player_base + part_3_base_offset, part_3_damage_dealt_offsets);
+        } break;
+        default:
+            break;
+    }
+    if (damage_dealt_address != 0)
+    {
+        uint8_t damage_dealt;
+        if (internal_memory_read(hProc, damage_dealt_address, &damage_dealt)
+            && damage_dealt == expected_damage_dealt_value)
+            internal_memory_write(damage_dealt_address, &new_damage_dealt);
+    }
+}
