@@ -1,15 +1,11 @@
 #include <windows.h>
 #include <tlhelp32.h>
-#include <filesystem>
-#include <algorithm>
-#include <iostream>
-#include <string>
+#include <string.h>
+#include <stdio.h>
 
-using namespace std;
-
-DWORD GetProcId(const char* procName)
+DWORD GetProcID(const char* process_name)
 {
-    DWORD procId = 0;
+    DWORD process_id = 0;
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
     if (hSnap != INVALID_HANDLE_VALUE)
@@ -21,84 +17,59 @@ DWORD GetProcId(const char* procName)
         {
             do
             {
-                if (!_stricmp(procEntry.szExeFile, procName))
+                if (!_stricmp(procEntry.szExeFile, process_name))
                 {
-                    procId = procEntry.th32ProcessID;
+                    process_id = procEntry.th32ProcessID;
                     break;
                 }
             } while (Process32Next(hSnap, &procEntry));
         }
     }
     CloseHandle(hSnap);
-    return procId;
-}
-
-void input_dll_path(string& dllPath_s)
-{
-    cout << "dll path?" << endl;
-    getline(cin, dllPath_s);
-    if (dllPath_s.front() == '\"' && dllPath_s.back() == '\"')
-    {
-        dllPath_s.erase(remove(dllPath_s.begin(), dllPath_s.end(), '\"'), dllPath_s.end());
-    }
+    return process_id;
 }
 
 int main(int argc, char** argv)
 {
-    string dllPath_s;
-    string procName_s;
-
-    if (argc < 2)
-    {
-        input_dll_path(dllPath_s);
-        cout << "process?" << endl;
-        getline(cin, procName_s);
-    }
+    char *process_name;
+    if (argc > 1)
+        process_name = argv[1];
     else
-    {
-        dllPath_s = argv[1];
-        procName_s = argv[2];
-    }
+        process_name = "Inscryption.exe";
 
-    while (!filesystem::exists(dllPath_s))
+    DWORD process_id = 0;
+    while ((process_id = GetProcID(process_name)) == 0)
     {
-        input_dll_path(dllPath_s);
-    }
-
-    const char* dllPath = dllPath_s.c_str();
-    const char* procName = procName_s.c_str();
-    DWORD procId = 0;
-
-    cout << "info: waiting for process " << procName << " .." << endl;
-    while (!procId)
-    {
-        procId = GetProcId(procName);
+        printf("Info: waiting for %s\r", process_name);
+        fflush(stdout);
         Sleep(100);
     }
 
-    HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, 0, procId);
+    CHAR module_path[MAX_PATH] = {0};
+    if (GetFullPathNameA("ic.dll", MAX_PATH, module_path, NULL) == 0)
+    {
+        fprintf(stderr, "GetFullPathNameA failed: %ld\n", GetLastError());
+        return 0;
+    }
 
-    if (hProc && hProc != INVALID_HANDLE_VALUE)
+    HANDLE hProc = OpenProcess(PROCESS_ALL_ACCESS, 0, process_id);
+
+    if (hProc != INVALID_HANDLE_VALUE)
     {
         void* loc = VirtualAllocEx(hProc, 0, MAX_PATH, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
         if (loc)
         {
-            WriteProcessMemory(hProc, loc, dllPath, strlen(dllPath) + 1, 0);
+            WriteProcessMemory(hProc, loc, module_path, strlen(module_path) + 1, 0);
+            HANDLE hThread = CreateRemoteThread(hProc, 0, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, loc, 0, 0);
+            if (hThread)
+                CloseHandle(hThread);
         }
 
-        HANDLE hThread = CreateRemoteThread(hProc, 0, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, loc, 0, 0);
-
-        if (hThread)
-        {
-            CloseHandle(hThread);
-        }
     }
 
     if (hProc)
-    {
         CloseHandle(hProc);
-    }
 
     return 0;
 }
