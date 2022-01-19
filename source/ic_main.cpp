@@ -92,6 +92,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
 			oWndProc = (WNDPROC)SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)WndProc);
 			ImGui::CreateContext();
 			ImGuiIO& io = ImGui::GetIO();
+			io.IniFilename = NULL;
 			io.ConfigFlags = ImGuiConfigFlags_NoMouseCursorChange;
 			ImGui_ImplWin32_Init(window);
 			ImGui_ImplDX11_Init(p_device, p_context);
@@ -169,7 +170,7 @@ int WINAPI main()
 	            case  1: { instant_win(process_handle, unity_player_dll_base + 0x012D7080, part_1_damage_dealt_offsets); } break;
 	            case  2: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_2_damage_dealt_offsets); } break;
 	            case  3: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_3_damage_dealt_offsets); } break;
-	            default: { ExitProcess(1); } break;
+	            default: break;
 	        }
         }
         Sleep(100);
