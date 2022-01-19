@@ -15,10 +15,12 @@
 #include "ic_util.hpp"
 #include "ic_offsets.hpp"
 
-// Globals
+typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
+
+bool g_continue = true;
+bool g_instant_win = true;
 HINSTANCE dll_handle;
 
-typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 present p_present;
 present p_present_target;
 bool get_present_pointer()
@@ -103,7 +105,9 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
 
 	ImGui::NewFrame();
 
-	ImGui::ShowDemoWindow();
+	ImGui::Begin("", &g_continue);
+
+    ImGui::Checkbox("Instant Win", &g_instant_win);
 
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -120,8 +124,6 @@ DWORD __stdcall EjectThread(LPVOID lpParameter) {
 	FreeLibraryAndExitThread(dll_handle, 0);
 }
 
-
-//"main" loop
 int WINAPI main()
 {
 
@@ -154,23 +156,26 @@ int WINAPI main()
 
     while (1)
     {
+		if (!g_continue) break;
         if (seconds_passed == 60)
         {
             current_part = get_current_part(process_handle);
             seconds_passed = 0;
         }
-        switch (current_part)
+        if (g_instant_win)
         {
-            case  1: { instant_win(process_handle, unity_player_dll_base + 0x012D7080, part_1_damage_dealt_offsets); } break;
-            case  2: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_2_damage_dealt_offsets); } break;
-            case  3: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_3_damage_dealt_offsets); } break;
-            default: { ExitProcess(1); } break;
+	        switch (current_part)
+	        {
+	            case  1: { instant_win(process_handle, unity_player_dll_base + 0x012D7080, part_1_damage_dealt_offsets); } break;
+	            case  2: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_2_damage_dealt_offsets); } break;
+	            case  3: { instant_win(process_handle, unity_player_dll_base + 0x0127E340, part_3_damage_dealt_offsets); } break;
+	            default: { ExitProcess(1); } break;
+	        }
         }
-        Sleep(1000);
+        Sleep(100);
         seconds_passed++;
     }
 
-	//Cleanup
 	if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK) {
 		return 1;
 	}
@@ -191,8 +196,6 @@ int WINAPI main()
 
 	return 0;
 }
-
-
 
 BOOL __stdcall DllMain(HINSTANCE hModule, DWORD dwReason, LPVOID lpReserved)
 {
