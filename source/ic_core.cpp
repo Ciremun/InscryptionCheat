@@ -65,7 +65,5 @@ uintptr_t get_current_duel_struct_address(HANDLE hProc, uintptr_t unity_player_d
         default:
             break;
     }
-    // TODO: no error handling
-    internal_memory_read(hProc, struct_address, &struct_address);
     return struct_address;
 }
