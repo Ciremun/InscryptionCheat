@@ -18,7 +18,8 @@
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 
 bool g_continue = true;
-bool g_instant_win = true;
+bool g_instant_win = false;
+bool g_infinite_health = false;
 HINSTANCE dll_handle;
 
 present p_present;
@@ -110,6 +111,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
 
     ImGui::Begin("", &g_continue);
     ImGui::Checkbox("Instant Win", &g_instant_win);
+    ImGui::Checkbox("Infinite Health", &g_infinite_health);
     ImGui::End();
 
     ImGui::EndFrame();
@@ -157,21 +159,55 @@ int WINAPI main()
     int current_part = get_current_part(process_handle);
     int cycles = 0;
     bool previous_instant_win_value = g_instant_win;
+    bool previous_infinite_health_value = g_infinite_health;
 
     while (1)
     {
         if (!g_continue) break;
-        if (cycles == 600)
+        if (cycles == 300)
         {
             current_part = get_current_part(process_handle);
             cycles = 0;
         }
-        if (g_instant_win)
-            write_to_damage_dealt(process_handle, unity_player_dll_base, current_part, 16, 0);
+        // TODO: cleanup, lambda with compare function?
+        if (g_instant_win || g_infinite_health)
+        {
+            uintptr_t duel_struct_address = get_current_duel_struct_address(process_handle, unity_player_dll_base, current_part);
+            if (duel_struct_address != 0)
+            {
+                if (g_instant_win)
+                {
+                    uint8_t actual_value;
+                    uint8_t new_value = 16;
+                    if (internal_memory_read(process_handle, duel_struct_address + damage_dealt_offset, &actual_value)
+                        && actual_value != 16)
+                        internal_memory_write(duel_struct_address + damage_dealt_offset, &new_value);
+                }
+                if (g_infinite_health)
+                {
+                    uint8_t actual_value;
+                    uint8_t new_value = 0;
+                    if (internal_memory_read(process_handle, duel_struct_address + damage_taken_offset, &actual_value)
+                        && actual_value > 0)
+                        internal_memory_write(duel_struct_address + damage_taken_offset, &new_value);
+                }
+            }
+        }
         if (!g_instant_win && previous_instant_win_value)
-            write_to_damage_dealt(process_handle, unity_player_dll_base, current_part, 0, 16);
+        {
+            uintptr_t duel_struct_address = get_current_duel_struct_address(process_handle, unity_player_dll_base, current_part);
+            if (duel_struct_address != 0)
+            {
+                uint8_t actual_value;
+                uint8_t new_value = 0;
+                if (internal_memory_read(process_handle, duel_struct_address + damage_dealt_offset, &actual_value)
+                    && actual_value == 16)
+                    internal_memory_write(duel_struct_address + damage_dealt_offset, &new_value);
+            }
+        }
         previous_instant_win_value = g_instant_win;
-        Sleep(100);
+        previous_infinite_health_value = g_infinite_health;
+        Sleep(200);
         cycles++;
     }
 
