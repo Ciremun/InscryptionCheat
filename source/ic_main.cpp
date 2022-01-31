@@ -21,6 +21,11 @@ bool g_continue = true;
 bool g_instant_win = false;
 bool g_infinite_health = false;
 HINSTANCE dll_handle;
+HANDLE g_process;
+
+uintptr_t g_unity_player_dll_base = 0;
+
+float x_coord_offset = .0f;
 
 present p_present;
 present p_present_target;
@@ -75,7 +80,6 @@ LRESULT __stdcall WndProc(const HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 bool init = false;
 HWND window = NULL;
-float viewport_width = 0;
 ID3D11Device* p_device = NULL;
 ID3D11DeviceContext* p_context = NULL;
 ID3D11RenderTargetView* mainRenderTargetView = NULL;
@@ -98,7 +102,6 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             io.ConfigFlags = ImGuiConfigFlags_NoMouseCursorChange;
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX11_Init(p_device, p_context);
-            viewport_width = ImGui::GetMainViewport()->Size.x;
             init = true;
         }
         else
@@ -112,6 +115,13 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
     ImGui::Begin("", &g_continue);
     ImGui::Checkbox("Instant Win", &g_instant_win);
     ImGui::Checkbox("Infinite Health", &g_infinite_health);
+
+    if (ImGui::SliderFloat("X", &x_coord_offset, -24.0f, 24.0f, "%.3f"))
+    {
+        uintptr_t view_matrix_struct_address =
+            internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
+        internal_memory_write(view_matrix_struct_address + view_matrix_x_offset, &x_coord_offset);
+    }
     ImGui::End();
 
     ImGui::EndFrame();
@@ -151,59 +161,56 @@ int WINAPI main()
         return 1;
     }
 
-    HANDLE process_handle = GetCurrentProcess();
+    g_process = GetCurrentProcess();
 
-    const uintptr_t unity_player_dll_base = GetModuleBaseAddress("UnityPlayer.dll");
-    IF(unity_player_dll_base == 0, "Couldn't get module's base address");
+    g_unity_player_dll_base = GetModuleBaseAddress("UnityPlayer.dll");
+    IF(g_unity_player_dll_base == 0, "Couldn't get module's base address");
 
-    int current_part = get_current_part(process_handle);
+    int current_part = get_current_part(g_process);
     int cycles = 0;
     bool previous_instant_win_value = g_instant_win;
     bool previous_infinite_health_value = g_infinite_health;
+
+    // AllocConsole();
+    // FILE* f;
+    // freopen_s(&f, "CONOUT$", "w", stdout);
 
     while (1)
     {
         if (!g_continue) break;
         if (cycles == 300)
         {
-            current_part = get_current_part(process_handle);
+            current_part = get_current_part(g_process);
             cycles = 0;
         }
-        // TODO: cleanup, lambda with compare function?
+
+        uintptr_t view_matrix_struct_address =
+            internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
+        internal_memory_read(g_process, view_matrix_struct_address + view_matrix_x_offset, &x_coord_offset);
+
+        auto write_to_duel_struct = [](uintptr_t duel_struct_addr, uintptr_t offset, uint8_t new_val, auto compare_func) {
+            uint8_t actual_val;
+            if (internal_memory_read(g_process, duel_struct_addr + offset, &actual_val)
+                && compare_func(actual_val))
+                internal_memory_write(duel_struct_addr + offset, &new_val);
+        };
+
         if (g_instant_win || g_infinite_health)
         {
-            uintptr_t duel_struct_address = get_current_duel_struct_address(process_handle, unity_player_dll_base, current_part);
+            uintptr_t duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
             if (duel_struct_address != 0)
             {
                 if (g_instant_win)
-                {
-                    uint8_t actual_value;
-                    uint8_t new_value = 16;
-                    if (internal_memory_read(process_handle, duel_struct_address + damage_dealt_offset, &actual_value)
-                        && actual_value != 16)
-                        internal_memory_write(duel_struct_address + damage_dealt_offset, &new_value);
-                }
+                    write_to_duel_struct(duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
                 if (g_infinite_health)
-                {
-                    uint8_t actual_value;
-                    uint8_t new_value = 0;
-                    if (internal_memory_read(process_handle, duel_struct_address + damage_taken_offset, &actual_value)
-                        && actual_value > 0)
-                        internal_memory_write(duel_struct_address + damage_taken_offset, &new_value);
-                }
+                    write_to_duel_struct(duel_struct_address, damage_taken_offset, 0, [](uint8_t val){ return val > 0; });
             }
         }
         if (!g_instant_win && previous_instant_win_value)
         {
-            uintptr_t duel_struct_address = get_current_duel_struct_address(process_handle, unity_player_dll_base, current_part);
+            uintptr_t duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
             if (duel_struct_address != 0)
-            {
-                uint8_t actual_value;
-                uint8_t new_value = 0;
-                if (internal_memory_read(process_handle, duel_struct_address + damage_dealt_offset, &actual_value)
-                    && actual_value == 16)
-                    internal_memory_write(duel_struct_address + damage_dealt_offset, &new_value);
-            }
+                write_to_duel_struct(duel_struct_address, damage_dealt_offset, 0, [](uint8_t val){ return val == 16; });
         }
         previous_instant_win_value = g_instant_win;
         previous_infinite_health_value = g_infinite_health;
