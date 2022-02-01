@@ -17,15 +17,27 @@
 
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 
-bool g_continue = true;
-bool g_instant_win = false;
-bool g_infinite_health = false;
 HINSTANCE dll_handle;
 HANDLE g_process;
 
-uintptr_t g_unity_player_dll_base = 0;
+bool g_continue = true;
+bool g_instant_win = false;
+bool g_infinite_health = false;
 
-float x_coord_offset = .0f;
+uintptr_t g_unity_player_dll_base = 0;
+uintptr_t g_view_matrix_struct_address = 0;
+
+struct ViewMatrix
+{
+    float x;
+    float y;
+    float z;
+    float rot;
+    float unknown_1;
+    float rot_2;
+};
+
+ViewMatrix vm;
 
 present p_present;
 present p_present_target;
@@ -112,16 +124,39 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
 
     ImGui::NewFrame();
 
-    ImGui::Begin("", &g_continue);
-    ImGui::Checkbox("Instant Win", &g_instant_win);
-    ImGui::Checkbox("Infinite Health", &g_infinite_health);
+    ImGui::SetNextWindowSize(ImVec2(160.0f, 200.0f), ImGuiCond_Once);
+    ImGui::Begin("ic.dll", &g_continue);
 
-    if (ImGui::SliderFloat("X", &x_coord_offset, -24.0f, 24.0f, "%.3f"))
+    if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
     {
-        uintptr_t view_matrix_struct_address =
-            internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-        internal_memory_write(view_matrix_struct_address + view_matrix_x_offset, &x_coord_offset);
+        if (ImGui::BeginTabItem("Duel"))
+        {
+            // TODO:
+            // [ ] free cards
+            // [ ] inf card health
+            // [ ] inf card attack
+            // [ ] add sigil
+            ImGui::Checkbox("Instant Win", &g_instant_win);
+            ImGui::Checkbox("Infinite Health", &g_infinite_health);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("View Matrix"))
+        {
+            if (g_view_matrix_struct_address)
+            {
+                // NOTE(Ciremun): struct base derived from Z address
+                ImGui::SliderFloat("X", ( float *)(g_view_matrix_struct_address - offsetof(vm, z)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address - offsetof(vm, y)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(vm, x)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("R1", (float *)(g_view_matrix_struct_address + offsetof(vm, rot)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(vm, rot_2)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R3", (float *)(g_view_matrix_struct_address + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
+
     ImGui::End();
 
     ImGui::EndFrame();
@@ -184,9 +219,8 @@ int WINAPI main()
             cycles = 0;
         }
 
-        uintptr_t view_matrix_struct_address =
+        g_view_matrix_struct_address =
             internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-        internal_memory_read(g_process, view_matrix_struct_address + view_matrix_x_offset, &x_coord_offset);
 
         auto write_to_duel_struct = [](uintptr_t duel_struct_addr, uintptr_t offset, uint8_t new_val, auto compare_func) {
             uint8_t actual_val;

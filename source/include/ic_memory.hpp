@@ -27,7 +27,8 @@ template <size_t N>
 uintptr_t internal_multi_level_pointer_dereference(HANDLE hProc, uintptr_t base, const uintptr_t (&offsets)[N])
 {
     for (size_t i = 0; i < N; ++i) {
-        internal_memory_read(hProc, base, &base);
+        if (internal_memory_read(hProc, base, &base) == 0)
+            return 0;
         base += offsets[i];
     }
     return base;
