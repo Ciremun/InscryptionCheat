@@ -37,8 +37,6 @@ struct ViewMatrix
     float rot_2;
 };
 
-ViewMatrix vm;
-
 present p_present;
 present p_present_target;
 bool get_present_pointer()
@@ -145,11 +143,11 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             if (g_view_matrix_struct_address)
             {
                 // NOTE(Ciremun): struct base derived from Z address
-                ImGui::SliderFloat("X", ( float *)(g_view_matrix_struct_address - offsetof(vm, z)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address - offsetof(vm, y)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(vm, x)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("R1", (float *)(g_view_matrix_struct_address + offsetof(vm, rot)), -1.0f, 1.0f, "%.3f");
-                ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(vm, rot_2)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("X",  (float *)(g_view_matrix_struct_address - offsetof(ViewMatrix, z)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address - offsetof(ViewMatrix, y)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, x)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("R1", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot_2)), -1.0f, 1.0f, "%.3f");
                 ImGui::SliderFloat("R3", (float *)(g_view_matrix_struct_address + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
             }
             ImGui::EndTabItem();
