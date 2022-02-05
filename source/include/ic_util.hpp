@@ -35,12 +35,14 @@ do\
 }\
 while (0)
 
+#define ERR(message) fprintf(stderr, "%s:%d: Error: %s\n", __FILE__, __LINE__, message)
+
 #define IF(condition, message)\
 do\
 {\
     if (condition)\
     {\
-        fprintf(stderr, "%s:%d: Error: %s", __FILE__, __LINE__, message);\
+        ERR(message);\
     }\
 }\
 while (0)
