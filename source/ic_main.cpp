@@ -9,6 +9,8 @@
 
 #include <d3d11.h>
 
+#include <vector>
+
 #include <stdint.h>
 
 #include "ic_core.hpp"
@@ -23,9 +25,41 @@ HANDLE g_process;
 bool g_continue = true;
 bool g_instant_win = false;
 bool g_infinite_health = false;
+bool g_zero_blood_cost = false;
 
 uintptr_t g_unity_player_dll_base = 0;
 uintptr_t g_view_matrix_struct_address = 0;
+
+unsigned char get_BloodCost_original_bytes[6] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
+void *get_BloodCost_code_start = 0;
+
+__declspec(naked) void zero_blood_cost()
+{
+    __asm {
+        mov eax, 0
+        ret
+    }
+}
+
+int detour_32(void *src, void *dst, int len)
+{
+    DWORD oldProtect;
+    if (VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &oldProtect) == 0)
+        return 0;
+
+    memset(src, 0x90, len);
+
+    uintptr_t relative_address = (uintptr_t)dst - (uintptr_t)src - 5;
+
+    *(BYTE *)src = 0xE9;
+
+    *(uintptr_t *)((uintptr_t)src + 1) = relative_address;
+
+    if (VirtualProtect(src, len, oldProtect, &oldProtect) == 0)
+        return 0;
+
+    return 1;
+}
 
 struct ViewMatrix
 {
@@ -136,6 +170,14 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             // [ ] add sigil
             ImGui::Checkbox("Instant Win", &g_instant_win);
             ImGui::Checkbox("Infinite Health", &g_infinite_health);
+            if (ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost))
+            {
+                if (g_zero_blood_cost)
+                    detour_32(get_BloodCost_code_start, zero_blood_cost, 6);
+                else
+                    memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, 6);
+            }
+
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("View Matrix"))
@@ -172,8 +214,79 @@ DWORD __stdcall EjectThread(LPVOID lpParameter) {
     FreeLibraryAndExitThread(dll_handle, 0);
 }
 
+typedef void* (__cdecl *MONO_GET_ROOT_DOMAIN)(void);
+typedef void* (__cdecl *MONO_THREAD_ATTACH)(void *domain);
+typedef void* (__cdecl *MONO_ASSEMBLY_GET_IMAGE)(void *assembly);
+typedef void* (__cdecl *MONO_CLASS_FROM_NAME_CASE)(void *image, char *name_space, char *name);
+typedef void* (__cdecl *MONO_CLASS_GET_METHOD_FROM_NAME)(void *klass, char *methodname, int paramcount);
+typedef void* (__cdecl *MONO_COMPILE_METHOD)(void *method);
+typedef void* (__cdecl *MONO_JIT_INFO_TABLE_FIND)(void *domain, void *addr);
+typedef void* (__cdecl *MONO_JIT_INFO_GET_CODE_START)(void *jitinfo);
+typedef void (__cdecl *MONO_THREAD_DETACH)(void *monothread);
+typedef void (__cdecl *GFunc)          (void *data, void *user_data);
+typedef int (__cdecl *MONO_ASSEMBLY_FOREACH)(GFunc func, void *user_data);
+
+void _cdecl AssemblyEnumerator(void *assembly, std::vector<uintptr_t> *v)
+{
+    v->push_back((uintptr_t)assembly);
+}
+
+int init_mono()
+{
+    HMODULE hMono = GetModuleHandleA("mono-2.0-bdwgc.dll");
+    CHECK(hMono != NULL);
+
+    auto mono_get_root_domain            = (MONO_GET_ROOT_DOMAIN)            GetProcAddress(hMono, "mono_get_root_domain");
+    auto mono_thread_attach              = (MONO_THREAD_ATTACH)              GetProcAddress(hMono, "mono_thread_attach");
+    auto mono_assembly_get_image         = (MONO_ASSEMBLY_GET_IMAGE)         GetProcAddress(hMono, "mono_assembly_get_image");
+    auto mono_class_from_name_case       = (MONO_CLASS_FROM_NAME_CASE)       GetProcAddress(hMono, "mono_class_from_name_case");
+    auto mono_class_get_method_from_name = (MONO_CLASS_GET_METHOD_FROM_NAME) GetProcAddress(hMono, "mono_class_get_method_from_name");
+    auto mono_compile_method             = (MONO_COMPILE_METHOD)             GetProcAddress(hMono, "mono_compile_method");
+    auto mono_jit_info_table_find        = (MONO_JIT_INFO_TABLE_FIND)        GetProcAddress(hMono, "mono_jit_info_table_find");
+    auto mono_jit_info_get_code_start    = (MONO_JIT_INFO_GET_CODE_START)    GetProcAddress(hMono, "mono_jit_info_get_code_start");
+    auto mono_thread_detach              = (MONO_THREAD_DETACH)              GetProcAddress(hMono, "mono_thread_detach");
+    auto mono_assembly_foreach           = (MONO_ASSEMBLY_FOREACH)           GetProcAddress(hMono, "mono_assembly_foreach");
+
+    void* domain = mono_get_root_domain();
+    if (!domain)
+    {
+        ERR("couldn't get root domain");
+        return 0;
+    }
+
+    void* mono_selfthread = mono_thread_attach(domain);
+    if (!mono_selfthread)
+    {
+        ERR("couldn't attach thread");
+        return 0;
+    }
+
+    std::vector<uintptr_t> v;
+    mono_assembly_foreach((GFunc)AssemblyEnumerator, &v);
+
+    for (const auto& assembly : v)
+    {
+        void* image                = mono_assembly_get_image((void*)assembly);                     if (!image) continue;
+        void* class_               = mono_class_from_name_case(image, "DiskCardGame", "CardInfo"); if (!class_) continue;
+        void* method               = mono_class_get_method_from_name(class_, "get_BloodCost", -1); if (!method) continue;
+        void* compiled_method_addr = mono_compile_method(method);                                  if (!compiled_method_addr) continue;
+        void* jit_info             = mono_jit_info_table_find(domain, compiled_method_addr);       if (!jit_info) continue;
+        get_BloodCost_code_start   = mono_jit_info_get_code_start(jit_info);
+        if (get_BloodCost_code_start)
+            return 1;
+    }
+
+    mono_thread_detach(mono_selfthread);
+    return 0;
+}
+
 int WINAPI main()
 {
+#ifndef NDEBUG
+    AllocConsole();
+    FILE* f;
+    freopen_s(&f, "CONOUT$", "w", stdout);
+#endif // NDEBUG
 
     if (!get_present_pointer()) 
     {
@@ -204,9 +317,7 @@ int WINAPI main()
     bool previous_instant_win_value = g_instant_win;
     bool previous_infinite_health_value = g_infinite_health;
 
-    // AllocConsole();
-    // FILE* f;
-    // freopen_s(&f, "CONOUT$", "w", stdout);
+    init_mono();
 
     while (1)
     {
