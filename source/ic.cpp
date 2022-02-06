@@ -5,6 +5,7 @@
 #include "imgui/imgui_impl_win32.cpp"
 #include "imgui/imgui_tables.cpp"
 #include "imgui/imgui_widgets.cpp"
+#include "ic_memory.cpp"
 #include "ic_core.cpp"
 #include "ic_util.cpp"
 #include "ic_mono.cpp"

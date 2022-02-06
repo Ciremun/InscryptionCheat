@@ -166,8 +166,10 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                     }
                     else
                     {
-                        memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, 6);
-                        memcpy(get_BonesCost_code_start, get_BonesCost_original_bytes, 6);
+                        IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, 6),
+                            "Couldn't write get_BloodCost_original_bytes");
+                        IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, 6),
+                            "Couldn't write get_BonesCost_original_bytes");
                     }
                 }
                 ImGui::PopStyleColor();

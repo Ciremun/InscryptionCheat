@@ -5,6 +5,8 @@
 
 #include "ic_util.hpp"
 
+int internal_memory_patch(void* dst, void* src, size_t len);
+
 template <typename T>
 void internal_memory_write(uintptr_t base, const T *buffer)
 {
