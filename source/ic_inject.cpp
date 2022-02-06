@@ -57,13 +57,14 @@ int main(int argc, char** argv)
     if (hProc != INVALID_HANDLE_VALUE)
     {
         void* loc = VirtualAllocEx(hProc, 0, MAX_PATH, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
         if (loc)
         {
-            WriteProcessMemory(hProc, loc, module_path, strlen(module_path) + 1, 0);
-            HANDLE hThread = CreateRemoteThread(hProc, 0, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, loc, 0, 0);
-            if (hThread)
-                CloseHandle(hThread);
+            if (WriteProcessMemory(hProc, loc, module_path, strlen(module_path) + 1, 0) != 0)
+            {
+                HANDLE hThread = CreateRemoteThread(hProc, 0, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, loc, 0, 0);
+                if (hThread)
+                    CloseHandle(hThread);
+            }
         }
 
     }
