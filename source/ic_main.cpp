@@ -24,12 +24,13 @@ HANDLE g_process;
 bool g_continue = true;
 bool g_instant_win = false;
 bool g_infinite_health = false;
-bool g_zero_blood_cost = false;
+bool g_free_cards = false;
 
 uintptr_t g_unity_player_dll_base = 0;
 uintptr_t g_view_matrix_struct_address = 0;
 
 extern void *get_BloodCost_code_start;
+extern void *get_BonesCost_code_start;
 
 struct ViewMatrix
 {
@@ -153,15 +154,21 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             ImGui::Checkbox("Infinite Health", &g_infinite_health);
             ImGui::PopStyleColor();
 
-            if (get_BloodCost_code_start)
+            if (get_BloodCost_code_start && get_BonesCost_code_start)
             {
-                ImGui::PushStyleColor(ImGuiCol_Text, g_zero_blood_cost ? IC_ENABLED : IC_DISABLED);
-                if (ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost))
+                ImGui::PushStyleColor(ImGuiCol_Text, g_free_cards ? IC_ENABLED : IC_DISABLED);
+                if (ImGui::Checkbox("Free Cards", &g_free_cards))
                 {
-                    if (g_zero_blood_cost)
-                        detour_32(get_BloodCost_code_start, zero_blood_cost, 6);
+                    if (g_free_cards)
+                    {
+                        detour_32(get_BloodCost_code_start, return_zero_cost, 6);
+                        detour_32(get_BonesCost_code_start, return_zero_cost, 6);
+                    }
                     else
+                    {
                         memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, 6);
+                        memcpy(get_BonesCost_code_start, get_BonesCost_original_bytes, 6);
+                    }
                 }
                 ImGui::PopStyleColor();
             }
@@ -169,7 +176,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             {
                 ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
                 ImGui::PushStyleColor(ImGuiCol_Text, IC_UNAVAILABLE);
-                ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost);
+                ImGui::Checkbox("Free Cards", &g_free_cards);
                 ImGui::PopStyleColor();
                 ImGui::PopItemFlag();
             }

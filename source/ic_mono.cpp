@@ -4,7 +4,10 @@
 unsigned char get_BloodCost_original_bytes[6] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BloodCost_code_start = 0;
 
-__declspec(naked) void zero_blood_cost()
+unsigned char get_BonesCost_original_bytes[6] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
+void *get_BonesCost_code_start = 0;
+
+__declspec(naked) void return_zero_cost()
 {
     __asm {
         mov eax, 0
@@ -14,13 +17,37 @@ __declspec(naked) void zero_blood_cost()
 
 void _cdecl assembly_enumerator(void *assembly, void *domain)
 {
-    void* image                = mono_assembly_get_image(assembly);                            if (!image) return;
-    void* class_               = mono_class_from_name_case(image, "DiskCardGame", "CardInfo"); if (!class_) return;
-    void* method               = mono_class_get_method_from_name(class_, "get_BloodCost", -1); if (!method) return;
-    void* compiled_method_addr = mono_compile_method(method);                                  if (!compiled_method_addr) return;
-    void* jit_info             = mono_jit_info_table_find(domain, compiled_method_addr);       if (!jit_info) return;
-    get_BloodCost_code_start   = mono_jit_info_get_code_start(jit_info);
-    IC_INFO_FMT("get_BloodCost_code_start: 0x%X", (uintptr_t)get_BloodCost_code_start);
+    const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
+    {
+        void* method = mono_class_get_method_from_name(class_, method_name, -1);
+        if (!method) return 0;
+
+        void* compiled_method_addr = mono_compile_method(method);
+        if (!compiled_method_addr) return 0;
+
+        void* jit_info = mono_jit_info_table_find(domain, compiled_method_addr);
+        if (!jit_info) return 0;
+
+        return mono_jit_info_get_code_start(jit_info);
+    };
+
+    void* image = mono_assembly_get_image(assembly);
+    if (!image) return;
+
+    void* class_ = mono_class_from_name_case(image, "DiskCardGame", "CardInfo");
+    if (!class_) return;
+
+    if (!get_BloodCost_code_start)
+    {
+        get_BloodCost_code_start = get_code_start(domain, class_, "get_BloodCost");
+        IC_INFO_FMT("get_BloodCost_code_start: 0x%X", (uintptr_t)get_BloodCost_code_start);
+    }
+
+    if (!get_BonesCost_code_start)
+    {
+        get_BonesCost_code_start = get_code_start(domain, class_, "get_BonesCost");
+        IC_INFO_FMT("get_BonesCost_code_start: 0x%X", (uintptr_t)get_BonesCost_code_start);
+    }
 }
 
 int init_mono()
