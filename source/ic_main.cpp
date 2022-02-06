@@ -197,13 +197,29 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot_2)), -1.0f, 1.0f, "%.3f");
                 ImGui::SliderFloat("R3", (float *)(g_view_matrix_struct_address + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
             }
+            else
+            {
+                float temp = 0.0f;
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleColor(ImGuiCol_Text, IC_UNAVAILABLE);
+                ImGui::SliderFloat("X",  &temp, -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Y",  &temp, -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Z",  &temp, -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("R1", &temp, -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R2", &temp, -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R3", &temp, -1.0f, 1.0f, "%.3f");
+                ImGui::PopStyleColor();
+                ImGui::PopItemFlag();
+            }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
     }
 
-    ImGui::End();
+    ImGuiIO& io = ImGui::GetIO();
+    io.MouseDrawCursor = io.WantCaptureMouse;
 
+    ImGui::End();
     ImGui::EndFrame();
     ImGui::Render();
 
@@ -255,12 +271,12 @@ int WINAPI main()
     int cycles = 0;
     bool previous_instant_win_value = g_instant_win;
 
-    g_view_matrix_struct_address =
-        internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-
     while (1)
     {
         if (!g_continue) break;
+
+        g_view_matrix_struct_address =
+            internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
 
         if (cycles == 300)
         {
