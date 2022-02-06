@@ -37,8 +37,10 @@ struct ViewMatrix
     float x;
     float y;
     float z;
-    float rot;
     float unknown_1;
+    float unknown_2;
+    float rot;
+    float unknown_4;
     float rot_2;
 };
 
@@ -189,10 +191,9 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
         {
             if (g_view_matrix_struct_address)
             {
-                // NOTE(Ciremun): struct base derived from Z address
-                ImGui::SliderFloat("X",  (float *)(g_view_matrix_struct_address - offsetof(ViewMatrix, z)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address - offsetof(ViewMatrix, y)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, x)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("X",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, x)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, y)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, z)), -32.0f, 32.0f, "%.3f");
                 ImGui::SliderFloat("R1", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot)), -1.0f, 1.0f, "%.3f");
                 ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot_2)), -1.0f, 1.0f, "%.3f");
                 ImGui::SliderFloat("R3", (float *)(g_view_matrix_struct_address + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
@@ -219,6 +220,9 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
         {
             g_view_matrix_struct_address =
                 internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
+            // NOTE(Ciremun): struct base derived from Z address
+            if (g_view_matrix_struct_address)
+                g_view_matrix_struct_address -= 8;
             IC_INFO_FMT("g_view_matrix_struct_address: 0x%X", g_view_matrix_struct_address);
         }
     }
