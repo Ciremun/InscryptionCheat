@@ -116,6 +116,8 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             io.ConfigFlags = ImGuiConfigFlags_NoMouseCursorChange;
             ImGui_ImplWin32_Init(window);
             ImGui_ImplDX11_Init(p_device, p_context);
+            if (!init_mono())
+                IC_ERROR("init_mono failed");
             init = true;
         }
         else
@@ -129,6 +131,10 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
     ImGui::SetNextWindowSize(ImVec2(160.0f, 200.0f), ImGuiCond_Once);
     ImGui::Begin("ic.dll", &g_continue);
 
+#define IC_ENABLED ImVec4(1.00f, 1.00f, 1.00f, 1.00f)
+#define IC_DISABLED ImVec4(0.50f, 0.50f, 0.50f, 1.00f)
+#define IC_UNAVAILABLE ImVec4(0.588f, 0.012f, 0.102f, 1.00f)
+
     if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
     {
         if (ImGui::BeginTabItem("Duel"))
@@ -138,14 +144,34 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             // [ ] inf card health
             // [ ] inf card attack
             // [ ] add sigil
+
+            ImGui::PushStyleColor(ImGuiCol_Text, g_instant_win ? IC_ENABLED : IC_DISABLED);
             ImGui::Checkbox("Instant Win", &g_instant_win);
+            ImGui::PopStyleColor();
+
+            ImGui::PushStyleColor(ImGuiCol_Text, g_infinite_health ? IC_ENABLED : IC_DISABLED);
             ImGui::Checkbox("Infinite Health", &g_infinite_health);
-            if (ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost))
+            ImGui::PopStyleColor();
+
+            if (get_BloodCost_code_start)
             {
-                if (g_zero_blood_cost)
-                    detour_32(get_BloodCost_code_start, zero_blood_cost, 6);
-                else
-                    memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, 6);
+                ImGui::PushStyleColor(ImGuiCol_Text, g_zero_blood_cost ? IC_ENABLED : IC_DISABLED);
+                if (ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost))
+                {
+                    if (g_zero_blood_cost)
+                        detour_32(get_BloodCost_code_start, zero_blood_cost, 6);
+                    else
+                        memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, 6);
+                }
+                ImGui::PopStyleColor();
+            }
+            else
+            {
+                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                ImGui::PushStyleColor(ImGuiCol_Text, IC_UNAVAILABLE);
+                ImGui::Checkbox("Zero Blood Cost", &g_zero_blood_cost);
+                ImGui::PopStyleColor();
+                ImGui::PopItemFlag();
             }
 
             ImGui::EndTabItem();
@@ -219,8 +245,6 @@ int WINAPI main()
     int current_part = get_current_part(g_process);
     int cycles = 0;
     bool previous_instant_win_value = g_instant_win;
-
-    init_mono();
 
     g_view_matrix_struct_address =
         internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);

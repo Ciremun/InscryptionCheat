@@ -20,6 +20,7 @@ void _cdecl assembly_enumerator(void *assembly, void *domain)
     void* compiled_method_addr = mono_compile_method(method);                                  if (!compiled_method_addr) return;
     void* jit_info             = mono_jit_info_table_find(domain, compiled_method_addr);       if (!jit_info) return;
     get_BloodCost_code_start   = mono_jit_info_get_code_start(jit_info);
+    IC_INFO_FMT("get_BloodCost_code_start: 0x%X", (uintptr_t)get_BloodCost_code_start);
 }
 
 int init_mono()
