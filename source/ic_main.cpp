@@ -214,6 +214,13 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+
+        if (ImGui::IsItemActivated())
+        {
+            g_view_matrix_struct_address =
+                internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
+            IC_INFO_FMT("g_view_matrix_struct_address: 0x%X", g_view_matrix_struct_address);
+        }
     }
 
     ImGuiIO& io = ImGui::GetIO();
@@ -275,9 +282,6 @@ int WINAPI main()
     {
         if (!g_continue) break;
 
-        g_view_matrix_struct_address =
-            internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-
         if (cycles == 300)
         {
             current_part = get_current_part(g_process);
@@ -330,6 +334,10 @@ int WINAPI main()
     if (p_context) { p_context->Release(); p_context = NULL; }
     if (p_device) { p_device->Release(); p_device = NULL; }
     SetWindowLongPtr(window, GWLP_WNDPROC, (LONG_PTR)(oWndProc));
+
+#ifndef NDEBUG
+    FreeConsole();
+#endif // NDEBUG
 
     CreateThread(0, 0, EjectThread, 0, 0, 0);
 
