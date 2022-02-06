@@ -41,14 +41,14 @@ int init_mono()
     void* domain = mono_get_root_domain();
     if (!domain)
     {
-        ERR("couldn't get root domain");
+        IC_ERROR("couldn't get root domain");
         return 0;
     }
 
     void* mono_selfthread = mono_thread_attach(domain);
     if (!mono_selfthread)
     {
-        ERR("couldn't attach thread");
+        IC_ERROR("couldn't attach thread");
         return 0;
     }
 

@@ -24,6 +24,10 @@ int map_file(File *f);
 int unmap_file(File f);
 int unmap_and_close_file(File f);
 
+#define IC_ERROR(message) fprintf(stderr, "%s:%d: Error: %s\n", __FILE__, __LINE__, message)
+#define IC_INFO(message) fprintf(stdout, "Info: %s\n", message)
+#define IC_INFO_FMT(fmt, ...) fprintf(stdout, "Info: " fmt "\n", __VA_ARGS__)
+
 #define CHECK(condition)\
 do\
 {\
@@ -37,14 +41,12 @@ do\
 }\
 while (0)
 
-#define ERR(message) fprintf(stderr, "%s:%d: Error: %s\n", __FILE__, __LINE__, message)
-
 #define IF(condition, message)\
 do\
 {\
     if (condition)\
     {\
-        ERR(message);\
+        IC_ERROR(message);\
     }\
 }\
 while (0)

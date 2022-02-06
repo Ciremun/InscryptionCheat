@@ -6,24 +6,27 @@
 #include "ic_core.hpp"
 #include "ic_util.hpp"
 
+CHAR gwsave_path[MAX_PATH] = {0};
+
 int get_current_part(HANDLE hProc)
 {
-    CHAR gwsave_path[MAX_PATH] = {0};
-    CHECK(GetModuleFileNameExA(hProc, NULL, gwsave_path, MAX_PATH) != 0);
-
-    for (size_t c = MAX_PATH; c >= 0; c--)
+    if (!gwsave_path[0])
     {
-        if (gwsave_path[c] == '\\')
+        CHECK(GetModuleFileNameExA(hProc, NULL, gwsave_path, MAX_PATH) != 0);
+        for (size_t c = MAX_PATH; c >= 0; c--)
         {
-            memcpy(gwsave_path + c + 1, "SaveFile.gwsave", sizeof("SaveFile.gwsave"));
-            break;
+            if (gwsave_path[c] == '\\')
+            {
+                memcpy(gwsave_path + c + 1, "SaveFile.gwsave", sizeof("SaveFile.gwsave"));
+                break;
+            }
         }
     }
 
     File gwsave = open_file(gwsave_path);
     if (gwsave.handle == INVALID_HANDLE_VALUE)
     {
-        printf("Info: Couldn't open 'gwsave' file, assuming part 1\n");
+        IC_INFO("Couldn't open 'gwsave' file, assuming part 1");
         CHECK(close_file(gwsave.handle));
         return 1;
     }
@@ -38,7 +41,7 @@ int get_current_part(HANDLE hProc)
         if (gwsave.start[i] == '\"' && memcmp(gwsave.start + i, "\"currentScene\": \"Part\"", 21) == 0)
         {
             current_part = gwsave.start[i + 21] - '0';
-            printf("Info: current part: %d\n", current_part);
+            IC_INFO_FMT("current part: %d", current_part);
             break;
         }
     }
