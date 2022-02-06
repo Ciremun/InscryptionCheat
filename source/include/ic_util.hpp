@@ -18,6 +18,7 @@ uintptr_t GetModuleBaseAddress(const char* modName);
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512]);
 int detour_32(void *src, void *dst, int len);
 File open_file(const char *path);
+LONGLONG get_file_size(HANDLE hFile);
 int close_file(HANDLE handle);
 int map_file(File *f);
 int unmap_file(File f);

@@ -31,7 +31,9 @@ int get_current_part(HANDLE hProc)
     CHECK(map_file(&gwsave));
 
     int current_part = 1;
-    for (int i = 0; i < 256; i++)
+
+    auto file_size = get_file_size(gwsave.handle);
+    for (int i = 0; i < file_size; i++)
     {
         if (gwsave.start[i] == '\"' && memcmp(gwsave.start + i, "\"currentScene\": \"Part\"", 21) == 0)
         {
