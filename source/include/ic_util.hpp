@@ -16,6 +16,7 @@ struct File
 
 uintptr_t GetModuleBaseAddress(const char* modName);
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512]);
+int detour_32(void *src, void *dst, int len);
 File open_file(const char *path);
 int close_file(HANDLE handle);
 int map_file(File *f);

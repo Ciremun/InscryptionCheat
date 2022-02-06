@@ -7,4 +7,5 @@
 #include "imgui/imgui_widgets.cpp"
 #include "ic_core.cpp"
 #include "ic_util.cpp"
+#include "ic_mono.cpp"
 #include "ic_main.cpp"

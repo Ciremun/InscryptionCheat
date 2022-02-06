@@ -45,6 +45,26 @@ void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512])
         memcpy(wszMsgBuff, "Error message not found", sizeof("Error message not found"));
 }
 
+int detour_32(void *src, void *dst, int len)
+{
+    DWORD oldProtect;
+    if (VirtualProtect(src, len, PAGE_EXECUTE_READWRITE, &oldProtect) == 0)
+        return 0;
+
+    memset(src, 0x90, len);
+
+    uintptr_t relative_address = (uintptr_t)dst - (uintptr_t)src - 5;
+
+    *(BYTE *)src = 0xE9;
+
+    *(uintptr_t *)((uintptr_t)src + 1) = relative_address;
+
+    if (VirtualProtect(src, len, oldProtect, &oldProtect) == 0)
+        return 0;
+
+    return 1;
+}
+
 File open_file(const char *path)
 {
     File f = {0};
