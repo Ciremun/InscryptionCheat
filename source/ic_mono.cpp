@@ -1,16 +1,16 @@
 #include "ic_util.hpp"
 #include "ic_mono.hpp"
 
-unsigned char get_BloodCost_original_bytes[6] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
+unsigned char get_BloodCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BloodCost_code_start = 0;
 
-unsigned char get_BonesCost_original_bytes[6] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
+unsigned char get_BonesCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BonesCost_code_start = 0;
 
 __declspec(naked) void return_zero_cost()
 {
     __asm {
-        mov eax, 0
+        xor eax, eax
         ret
     }
 }

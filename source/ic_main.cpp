@@ -161,14 +161,14 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 {
                     if (g_free_cards)
                     {
-                        detour_32(get_BloodCost_code_start, return_zero_cost, 6);
-                        detour_32(get_BonesCost_code_start, return_zero_cost, 6);
+                        detour_32(get_BloodCost_code_start, return_zero_cost, sizeof(get_BloodCost_original_bytes));
+                        detour_32(get_BonesCost_code_start, return_zero_cost, sizeof(get_BonesCost_original_bytes));
                     }
                     else
                     {
-                        IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, 6),
+                        IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
                             "Couldn't write get_BloodCost_original_bytes");
-                        IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, 6),
+                        IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
                             "Couldn't write get_BonesCost_original_bytes");
                     }
                 }
