@@ -9,8 +9,6 @@
 
 #include <d3d11.h>
 
-#include <vector>
-
 #include <stdint.h>
 
 #include "ic_core.hpp"
@@ -226,9 +224,25 @@ typedef void (__cdecl *MONO_THREAD_DETACH)(void *monothread);
 typedef void (__cdecl *GFunc)          (void *data, void *user_data);
 typedef int (__cdecl *MONO_ASSEMBLY_FOREACH)(GFunc func, void *user_data);
 
-void _cdecl AssemblyEnumerator(void *assembly, std::vector<uintptr_t> *v)
+MONO_GET_ROOT_DOMAIN            mono_get_root_domain;
+MONO_THREAD_ATTACH              mono_thread_attach;
+MONO_ASSEMBLY_GET_IMAGE         mono_assembly_get_image;
+MONO_CLASS_FROM_NAME_CASE       mono_class_from_name_case;
+MONO_CLASS_GET_METHOD_FROM_NAME mono_class_get_method_from_name;
+MONO_COMPILE_METHOD             mono_compile_method;
+MONO_JIT_INFO_TABLE_FIND        mono_jit_info_table_find;
+MONO_JIT_INFO_GET_CODE_START    mono_jit_info_get_code_start;
+MONO_THREAD_DETACH              mono_thread_detach;
+MONO_ASSEMBLY_FOREACH           mono_assembly_foreach;
+
+void _cdecl AssemblyEnumerator(void *assembly, void *domain)
 {
-    v->push_back((uintptr_t)assembly);
+    void* image                = mono_assembly_get_image(assembly);                            if (!image) return;
+    void* class_               = mono_class_from_name_case(image, "DiskCardGame", "CardInfo"); if (!class_) return;
+    void* method               = mono_class_get_method_from_name(class_, "get_BloodCost", -1); if (!method) return;
+    void* compiled_method_addr = mono_compile_method(method);                                  if (!compiled_method_addr) return;
+    void* jit_info             = mono_jit_info_table_find(domain, compiled_method_addr);       if (!jit_info) return;
+    get_BloodCost_code_start   = mono_jit_info_get_code_start(jit_info);
 }
 
 int init_mono()
@@ -236,16 +250,16 @@ int init_mono()
     HMODULE hMono = GetModuleHandleA("mono-2.0-bdwgc.dll");
     CHECK(hMono != NULL);
 
-    auto mono_get_root_domain            = (MONO_GET_ROOT_DOMAIN)            GetProcAddress(hMono, "mono_get_root_domain");
-    auto mono_thread_attach              = (MONO_THREAD_ATTACH)              GetProcAddress(hMono, "mono_thread_attach");
-    auto mono_assembly_get_image         = (MONO_ASSEMBLY_GET_IMAGE)         GetProcAddress(hMono, "mono_assembly_get_image");
-    auto mono_class_from_name_case       = (MONO_CLASS_FROM_NAME_CASE)       GetProcAddress(hMono, "mono_class_from_name_case");
-    auto mono_class_get_method_from_name = (MONO_CLASS_GET_METHOD_FROM_NAME) GetProcAddress(hMono, "mono_class_get_method_from_name");
-    auto mono_compile_method             = (MONO_COMPILE_METHOD)             GetProcAddress(hMono, "mono_compile_method");
-    auto mono_jit_info_table_find        = (MONO_JIT_INFO_TABLE_FIND)        GetProcAddress(hMono, "mono_jit_info_table_find");
-    auto mono_jit_info_get_code_start    = (MONO_JIT_INFO_GET_CODE_START)    GetProcAddress(hMono, "mono_jit_info_get_code_start");
-    auto mono_thread_detach              = (MONO_THREAD_DETACH)              GetProcAddress(hMono, "mono_thread_detach");
-    auto mono_assembly_foreach           = (MONO_ASSEMBLY_FOREACH)           GetProcAddress(hMono, "mono_assembly_foreach");
+    mono_get_root_domain            = (MONO_GET_ROOT_DOMAIN)            GetProcAddress(hMono, "mono_get_root_domain");
+    mono_thread_attach              = (MONO_THREAD_ATTACH)              GetProcAddress(hMono, "mono_thread_attach");
+    mono_assembly_get_image         = (MONO_ASSEMBLY_GET_IMAGE)         GetProcAddress(hMono, "mono_assembly_get_image");
+    mono_class_from_name_case       = (MONO_CLASS_FROM_NAME_CASE)       GetProcAddress(hMono, "mono_class_from_name_case");
+    mono_class_get_method_from_name = (MONO_CLASS_GET_METHOD_FROM_NAME) GetProcAddress(hMono, "mono_class_get_method_from_name");
+    mono_compile_method             = (MONO_COMPILE_METHOD)             GetProcAddress(hMono, "mono_compile_method");
+    mono_jit_info_table_find        = (MONO_JIT_INFO_TABLE_FIND)        GetProcAddress(hMono, "mono_jit_info_table_find");
+    mono_jit_info_get_code_start    = (MONO_JIT_INFO_GET_CODE_START)    GetProcAddress(hMono, "mono_jit_info_get_code_start");
+    mono_thread_detach              = (MONO_THREAD_DETACH)              GetProcAddress(hMono, "mono_thread_detach");
+    mono_assembly_foreach           = (MONO_ASSEMBLY_FOREACH)           GetProcAddress(hMono, "mono_assembly_foreach");
 
     void* domain = mono_get_root_domain();
     if (!domain)
@@ -261,23 +275,11 @@ int init_mono()
         return 0;
     }
 
-    std::vector<uintptr_t> v;
-    mono_assembly_foreach((GFunc)AssemblyEnumerator, &v);
-
-    for (const auto& assembly : v)
-    {
-        void* image                = mono_assembly_get_image((void*)assembly);                     if (!image) continue;
-        void* class_               = mono_class_from_name_case(image, "DiskCardGame", "CardInfo"); if (!class_) continue;
-        void* method               = mono_class_get_method_from_name(class_, "get_BloodCost", -1); if (!method) continue;
-        void* compiled_method_addr = mono_compile_method(method);                                  if (!compiled_method_addr) continue;
-        void* jit_info             = mono_jit_info_table_find(domain, compiled_method_addr);       if (!jit_info) continue;
-        get_BloodCost_code_start   = mono_jit_info_get_code_start(jit_info);
-        if (get_BloodCost_code_start)
-            return 1;
-    }
+    mono_assembly_foreach((GFunc)AssemblyEnumerator, domain);
 
     mono_thread_detach(mono_selfthread);
-    return 0;
+
+    return get_BloodCost_code_start != 0;
 }
 
 int WINAPI main()
