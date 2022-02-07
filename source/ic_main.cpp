@@ -176,7 +176,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 static const unsigned char nops[] = { 0x90, 0x90, 0x90 };
                 if (g_infinite_health)
                     IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, (void *)nops, sizeof(nops)),
-                        "Couldn't write get_BonesCost_original_bytes");
+                        "Couldn't write infinite_health nops");
                 else
                     IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes)),
                         "Couldn't write infinite_health_original_bytes");
