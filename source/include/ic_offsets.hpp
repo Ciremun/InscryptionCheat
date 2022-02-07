@@ -9,7 +9,6 @@ const uintptr_t part_2_base_offset = 0x0127E340;
 const uintptr_t part_3_duel_struct_offsets[] = { 0x00, 0x308, 0x3C, 0x10, 0x08, 0x514, 0x00             };
 const uintptr_t part_3_base_offset = 0x0127E340;
 
-const uintptr_t damage_taken_offset = 0x10;
 const uintptr_t damage_dealt_offset = 0x14;
 
 const uintptr_t view_matrix_struct_offsets[] = { 0x08, 0x008, 0x1C, 0x04, 0x60, 0x020, 0x68 };

@@ -36,6 +36,7 @@ uintptr_t g_duel_struct_address = 0;
 
 extern void *get_BloodCost_code_start;
 extern void *get_BonesCost_code_start;
+extern void *infinite_health_code_start;
 
 struct ViewMatrix
 {
@@ -171,8 +172,14 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
             ImGui::Checkbox("Instant Win", &g_instant_win);
             ImGui::PopStyleColor();
 
-            MaybeCheckbox("Infinite Health", 1, g_infinite_health, [](){
-
+            MaybeCheckbox("Infinite Health", infinite_health_code_start, g_infinite_health, [](){
+                static const unsigned char nops[] = { 0x90, 0x90, 0x90 };
+                if (g_infinite_health)
+                    IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, (void *)nops, sizeof(nops)),
+                        "Couldn't write get_BonesCost_original_bytes");
+                else
+                    IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes)),
+                        "Couldn't write infinite_health_original_bytes");
             });
 
             MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, [](){
@@ -304,16 +311,11 @@ int WINAPI main()
                 internal_memory_write(duel_struct_addr + offset, &new_val);
         };
 
-        if (g_instant_win || g_infinite_health)
+        if (g_instant_win)
         {
             g_duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
-            if (g_duel_struct_address)
-            {
-                if (g_instant_win)
-                    write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
-                if (g_infinite_health)
-                    write_to_duel_struct(g_duel_struct_address, damage_taken_offset, 0, [](uint8_t val){ return val > 0; });
-            }
+            if (g_duel_struct_address && g_instant_win)
+                write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
         }
 
         if (!g_instant_win && previous_instant_win_value)

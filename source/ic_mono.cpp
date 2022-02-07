@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "ic_util.hpp"
 #include "ic_mono.hpp"
 
@@ -7,6 +9,9 @@ void *get_BloodCost_code_start = 0;
 unsigned char get_BonesCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BonesCost_code_start = 0;
 
+unsigned char infinite_health_original_bytes[] = { 0x89, 0x46, 0x10 };
+void *infinite_health_code_start = 0;
+
 __declspec(naked) void return_zero_cost()
 {
     __asm {
@@ -15,11 +20,9 @@ __declspec(naked) void return_zero_cost()
     }
 }
 
-// diskcardgame.lifemanager.showdamagesequence d__23MoveNext ? offset 2ff inf health
-
 void _cdecl find_code_starts(void *assembly, void *domain)
 {
-    if (get_BloodCost_code_start && get_BonesCost_code_start)
+    if (get_BloodCost_code_start && get_BonesCost_code_start && infinite_health_code_start)
         return;
 
     const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
@@ -56,6 +59,30 @@ void _cdecl find_code_starts(void *assembly, void *domain)
             IC_INFO_FMT("get_BonesCost_code_start: 0x%X", (uintptr_t)get_BonesCost_code_start);
         }
     }
+
+    if (!infinite_health_code_start)
+    {
+        void* table_info = mono_image_get_table_info(image, 2);
+        int rows = mono_table_info_get_rows(table_info);
+        for (int i = 0; i < rows; i++)
+        {
+            uint32_t cols[6];
+            mono_metadata_decode_row(table_info, i, cols, 6);
+            const char* ns = mono_metadata_string_heap(image, cols[2]);
+            if (!ns[0])
+            {
+                const char* name = mono_metadata_string_heap(image, cols[1]);
+                if (memcmp(name, "<ShowDamageSequence>d__23", 25) == 0)
+                {
+                    void *class_ = mono_class_get(image, i + 1 | 0x02000000);
+                    infinite_health_code_start = get_code_start(domain, class_, "MoveNext");
+                    if (infinite_health_code_start)
+                        infinite_health_code_start = (void *)((uintptr_t)infinite_health_code_start + 0x2FF);
+                    IC_INFO_FMT("infinite_health_code_start: 0x%X", (uintptr_t)infinite_health_code_start);
+                }
+            }
+        }
+    }
 }
 
 int init_mono()
@@ -77,6 +104,11 @@ int init_mono()
     mono_jit_info_get_code_start    = (MONO_JIT_INFO_GET_CODE_START)    GetProcAddress(hMono, "mono_jit_info_get_code_start");
     mono_thread_detach              = (MONO_THREAD_DETACH)              GetProcAddress(hMono, "mono_thread_detach");
     mono_assembly_foreach           = (MONO_ASSEMBLY_FOREACH)           GetProcAddress(hMono, "mono_assembly_foreach");
+    mono_image_get_table_info       = (MONO_IMAGE_GET_TABLE_INFO)       GetProcAddress(hMono, "mono_image_get_table_info");
+    mono_table_info_get_rows        = (MONO_TABLE_INFO_GET_ROWS)        GetProcAddress(hMono, "mono_table_info_get_rows");
+    mono_metadata_decode_row        = (MONO_METADATA_DECODE_ROW)        GetProcAddress(hMono, "mono_metadata_decode_row");
+    mono_metadata_string_heap       = (MONO_METADATA_STRING_HEAP)       GetProcAddress(hMono, "mono_metadata_string_heap");
+    mono_class_get                  = (MONO_CLASS_GET)                  GetProcAddress(hMono, "mono_class_get");
 
     void* domain = mono_get_root_domain();
     if (!domain)
