@@ -25,18 +25,26 @@ int unmap_file(File f);
 int unmap_and_close_file(File f);
 
 #define IC_ERROR(message) fprintf(stderr, "%s:%d: Error: %s\n", __FILE__, __LINE__, message)
+#define IC_ERROR_FMT(fmt, ...) fprintf(stderr, "%s:%d: Error: " fmt "\n", __FILE__, __LINE__, __VA_ARGS__)
 #define IC_INFO(message) fprintf(stdout, "Info: %s\n", message)
 #define IC_INFO_FMT(fmt, ...) fprintf(stdout, "Info: " fmt "\n", __VA_ARGS__)
+
+#define IC_WINAPI_ERROR()\
+do\
+{\
+    CHAR wszMsgBuff[512];\
+    DWORD error_code = GetLastError();\
+    GetErrorString(error_code, wszMsgBuff);\
+    IC_ERROR_FMT("%d - %s", error_code, wszMsgBuff);\
+}\
+while (0)
 
 #define IC_CHECK(condition)\
 do\
 {\
     if (!condition)\
     {\
-        CHAR wszMsgBuff[512];\
-        DWORD error_code = GetLastError();\
-        GetErrorString(error_code, wszMsgBuff);\
-        fprintf(stderr, "%s:%d: Error %d: %s", __FILE__, __LINE__, error_code, wszMsgBuff);\
+        IC_WINAPI_ERROR();\
     }\
 }\
 while (0)
