@@ -252,6 +252,7 @@ int WINAPI main()
     AllocConsole();
     FILE* f;
     freopen_s(&f, "CONOUT$", "w", stdout);
+    freopen_s(&f, "CONOUT$", "w", stderr);
 #endif // NDEBUG
 
     if (!get_present_pointer()) 
