@@ -65,7 +65,7 @@ File open_file(const char *path)
 LONGLONG get_file_size(HANDLE hFile)
 {
     LARGE_INTEGER lpFileSize = {0};
-    CHECK(GetFileSizeEx(hFile, &lpFileSize) != 0);
+    IC_CHECK(GetFileSizeEx(hFile, &lpFileSize) != 0);
     return lpFileSize.QuadPart;
 }
 

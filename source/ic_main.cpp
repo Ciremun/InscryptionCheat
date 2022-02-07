@@ -168,9 +168,9 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                     }
                     else
                     {
-                        IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
+                        IC_ERROR_IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
                             "Couldn't write get_BloodCost_original_bytes");
-                        IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
+                        IC_ERROR_IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
                             "Couldn't write get_BonesCost_original_bytes");
                     }
                 }
@@ -276,7 +276,7 @@ int WINAPI main()
     g_process = GetCurrentProcess();
 
     g_unity_player_dll_base = GetModuleBaseAddress("UnityPlayer.dll");
-    IF(g_unity_player_dll_base == 0, "Couldn't get module's base address");
+    IC_ERROR_IF(g_unity_player_dll_base == 0, "Couldn't get module's base address");
 
     int current_part = get_current_part(g_process);
     int cycles = 0;

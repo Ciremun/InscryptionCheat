@@ -18,7 +18,7 @@ int internal_memory_read(HANDLE hProc, uintptr_t base, T *buffer)
 {
     PSAPI_WORKING_SET_EX_INFORMATION info;
     info.VirtualAddress = (PVOID)base;
-    CHECK(QueryWorkingSetEx(hProc, &info, sizeof(info)) != 0);
+    IC_CHECK(QueryWorkingSetEx(hProc, &info, sizeof(info)) != 0);
     if (!info.VirtualAttributes.Valid)
         return 0;
     *buffer = *(T*)base;

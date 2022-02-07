@@ -53,7 +53,7 @@ void _cdecl assembly_enumerator(void *assembly, void *domain)
 int init_mono()
 {
     HMODULE hMono = GetModuleHandleA("mono-2.0-bdwgc.dll");
-    CHECK(hMono != NULL);
+    IC_CHECK(hMono != NULL);
 
     mono_get_root_domain            = (MONO_GET_ROOT_DOMAIN)            GetProcAddress(hMono, "mono_get_root_domain");
     mono_thread_attach              = (MONO_THREAD_ATTACH)              GetProcAddress(hMono, "mono_thread_attach");

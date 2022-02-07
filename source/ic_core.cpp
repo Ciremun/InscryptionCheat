@@ -12,7 +12,7 @@ int get_current_part(HANDLE hProc)
 {
     if (!gwsave_path[0])
     {
-        CHECK(GetModuleFileNameExA(hProc, NULL, gwsave_path, MAX_PATH) != 0);
+        IC_CHECK(GetModuleFileNameExA(hProc, NULL, gwsave_path, MAX_PATH) != 0);
         for (size_t c = MAX_PATH; c >= 0; c--)
         {
             if (gwsave_path[c] == '\\')
@@ -27,11 +27,11 @@ int get_current_part(HANDLE hProc)
     if (gwsave.handle == INVALID_HANDLE_VALUE)
     {
         IC_INFO("Couldn't open 'gwsave' file, assuming part 1");
-        CHECK(close_file(gwsave.handle));
+        IC_CHECK(close_file(gwsave.handle));
         return 1;
     }
 
-    CHECK(map_file(&gwsave));
+    IC_CHECK(map_file(&gwsave));
 
     int current_part = 1;
 
@@ -46,7 +46,7 @@ int get_current_part(HANDLE hProc)
         }
     }
 
-    CHECK(unmap_and_close_file(gwsave));
+    IC_CHECK(unmap_and_close_file(gwsave));
     return current_part;
 }
 

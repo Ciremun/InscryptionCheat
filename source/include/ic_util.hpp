@@ -28,7 +28,7 @@ int unmap_and_close_file(File f);
 #define IC_INFO(message) fprintf(stdout, "Info: %s\n", message)
 #define IC_INFO_FMT(fmt, ...) fprintf(stdout, "Info: " fmt "\n", __VA_ARGS__)
 
-#define CHECK(condition)\
+#define IC_CHECK(condition)\
 do\
 {\
     if (!condition)\
@@ -41,7 +41,7 @@ do\
 }\
 while (0)
 
-#define IF(condition, message)\
+#define IC_ERROR_IF(condition, message)\
 do\
 {\
     if (condition)\
