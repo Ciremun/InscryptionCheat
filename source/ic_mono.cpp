@@ -17,6 +17,8 @@ __declspec(naked) void return_zero_cost()
 
 void _cdecl assembly_enumerator(void *assembly, void *domain)
 {
+    if (get_BloodCost_code_start && get_BonesCost_code_start)
+        return;
     const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
     {
         void* method = mono_class_get_method_from_name(class_, method_name, -1);
