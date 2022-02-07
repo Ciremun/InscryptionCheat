@@ -15,10 +15,13 @@ __declspec(naked) void return_zero_cost()
     }
 }
 
-void _cdecl assembly_enumerator(void *assembly, void *domain)
+// diskcardgame.lifemanager.showdamagesequence d__23MoveNext ? offset 2ff inf health
+
+void _cdecl find_code_starts(void *assembly, void *domain)
 {
     if (get_BloodCost_code_start && get_BonesCost_code_start)
         return;
+
     const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
     {
         void* method = mono_class_get_method_from_name(class_, method_name, -1);
@@ -36,19 +39,22 @@ void _cdecl assembly_enumerator(void *assembly, void *domain)
     void* image = mono_assembly_get_image(assembly);
     if (!image) return;
 
-    void* class_ = mono_class_from_name_case(image, "DiskCardGame", "CardInfo");
-    if (!class_) return;
-
-    if (!get_BloodCost_code_start)
+    if (!get_BloodCost_code_start || !get_BonesCost_code_start)
     {
-        get_BloodCost_code_start = get_code_start(domain, class_, "get_BloodCost");
-        IC_INFO_FMT("get_BloodCost_code_start: 0x%X", (uintptr_t)get_BloodCost_code_start);
-    }
+        void* class_ = mono_class_from_name_case(image, "DiskCardGame", "CardInfo");
+        if (!class_) return;
 
-    if (!get_BonesCost_code_start)
-    {
-        get_BonesCost_code_start = get_code_start(domain, class_, "get_BonesCost");
-        IC_INFO_FMT("get_BonesCost_code_start: 0x%X", (uintptr_t)get_BonesCost_code_start);
+        if (!get_BloodCost_code_start)
+        {
+            get_BloodCost_code_start = get_code_start(domain, class_, "get_BloodCost");
+            IC_INFO_FMT("get_BloodCost_code_start: 0x%X", (uintptr_t)get_BloodCost_code_start);
+        }
+
+        if (!get_BonesCost_code_start)
+        {
+            get_BonesCost_code_start = get_code_start(domain, class_, "get_BonesCost");
+            IC_INFO_FMT("get_BonesCost_code_start: 0x%X", (uintptr_t)get_BonesCost_code_start);
+        }
     }
 }
 
@@ -86,7 +92,7 @@ int init_mono()
         return 0;
     }
 
-    mono_assembly_foreach((GFunc)assembly_enumerator, domain);
+    mono_assembly_foreach((GFunc)find_code_starts, domain);
 
     mono_thread_detach(mono_selfthread);
 

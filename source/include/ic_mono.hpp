@@ -3,8 +3,8 @@
 #include <windows.h>
 
 int init_mono();
-void zero_blood_cost();
-void _cdecl assembly_enumerator(void *assembly, void *domain);
+void return_zero_cost();
+void _cdecl find_code_starts(void *assembly, void *domain);
 
 typedef void* (__cdecl *MONO_GET_ROOT_DOMAIN)(void);
 typedef void* (__cdecl *MONO_THREAD_ATTACH)(void *domain);

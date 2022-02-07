@@ -16,6 +16,10 @@
 #include "ic_offsets.hpp"
 #include "ic_mono.hpp"
 
+#define IC_ENABLED ImVec4(1.00f, 1.00f, 1.00f, 1.00f)
+#define IC_DISABLED ImVec4(0.50f, 0.50f, 0.50f, 1.00f)
+#define IC_UNAVAILABLE ImVec4(0.588f, 0.012f, 0.102f, 1.00f)
+
 typedef long(__stdcall* present)(IDXGISwapChain*, UINT, UINT);
 
 HINSTANCE dll_handle;
@@ -28,6 +32,7 @@ bool g_free_cards = false;
 
 uintptr_t g_unity_player_dll_base = 0;
 uintptr_t g_view_matrix_struct_address = 0;
+uintptr_t g_duel_struct_address = 0;
 
 extern void *get_BloodCost_code_start;
 extern void *get_BonesCost_code_start;
@@ -134,56 +139,56 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
     ImGui::SetNextWindowSize(ImVec2(160.0f, 200.0f), ImGuiCond_Once);
     ImGui::Begin("ic.dll", &g_continue);
 
-#define IC_ENABLED ImVec4(1.00f, 1.00f, 1.00f, 1.00f)
-#define IC_DISABLED ImVec4(0.50f, 0.50f, 0.50f, 1.00f)
-#define IC_UNAVAILABLE ImVec4(0.588f, 0.012f, 0.102f, 1.00f)
-
     if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
     {
         if (ImGui::BeginTabItem("Duel"))
         {
             // TODO:
-            // [ ] free cards
             // [ ] inf card health
             // [ ] inf card attack
             // [ ] add sigil
+
+            const auto MaybeCheckbox = [](const char* label, bool cond, bool &enabled, auto body)
+            {
+                if (cond)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_Text, enabled ? IC_ENABLED : IC_DISABLED);
+                    if (ImGui::Checkbox(label, &enabled))
+                        body();
+                    ImGui::PopStyleColor();
+                }
+                else
+                {
+                    ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+                    ImGui::PushStyleColor(ImGuiCol_Text, IC_UNAVAILABLE);
+                    ImGui::Checkbox(label, &enabled);
+                    ImGui::PopStyleColor();
+                    ImGui::PopItemFlag();
+                }
+            };
 
             ImGui::PushStyleColor(ImGuiCol_Text, g_instant_win ? IC_ENABLED : IC_DISABLED);
             ImGui::Checkbox("Instant Win", &g_instant_win);
             ImGui::PopStyleColor();
 
-            ImGui::PushStyleColor(ImGuiCol_Text, g_infinite_health ? IC_ENABLED : IC_DISABLED);
-            ImGui::Checkbox("Infinite Health", &g_infinite_health);
-            ImGui::PopStyleColor();
+            MaybeCheckbox("Infinite Health", 1, g_infinite_health, [](){
 
-            if (get_BloodCost_code_start && get_BonesCost_code_start)
-            {
-                ImGui::PushStyleColor(ImGuiCol_Text, g_free_cards ? IC_ENABLED : IC_DISABLED);
-                if (ImGui::Checkbox("Free Cards", &g_free_cards))
+            });
+
+            MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, [](){
+                if (g_free_cards)
                 {
-                    if (g_free_cards)
-                    {
-                        detour_32(get_BloodCost_code_start, return_zero_cost, sizeof(get_BloodCost_original_bytes));
-                        detour_32(get_BonesCost_code_start, return_zero_cost, sizeof(get_BonesCost_original_bytes));
-                    }
-                    else
-                    {
-                        IC_ERROR_IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
-                            "Couldn't write get_BloodCost_original_bytes");
-                        IC_ERROR_IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
-                            "Couldn't write get_BonesCost_original_bytes");
-                    }
+                    detour_32(get_BloodCost_code_start, return_zero_cost, sizeof(get_BloodCost_original_bytes));
+                    detour_32(get_BonesCost_code_start, return_zero_cost, sizeof(get_BonesCost_original_bytes));
                 }
-                ImGui::PopStyleColor();
-            }
-            else
-            {
-                ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-                ImGui::PushStyleColor(ImGuiCol_Text, IC_UNAVAILABLE);
-                ImGui::Checkbox("Free Cards", &g_free_cards);
-                ImGui::PopStyleColor();
-                ImGui::PopItemFlag();
-            }
+                else
+                {
+                    IC_ERROR_IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
+                        "Couldn't write get_BloodCost_original_bytes");
+                    IC_ERROR_IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
+                        "Couldn't write get_BonesCost_original_bytes");
+                }
+            });
 
             ImGui::EndTabItem();
         }
@@ -218,9 +223,9 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
 
         if (ImGui::IsItemActivated())
         {
+            // NOTE(Ciremun): struct base derived from Z address
             g_view_matrix_struct_address =
                 internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-            // NOTE(Ciremun): struct base derived from Z address
             if (g_view_matrix_struct_address)
                 g_view_matrix_struct_address -= 8;
             IC_INFO_FMT("g_view_matrix_struct_address: 0x%X", g_view_matrix_struct_address);
@@ -275,7 +280,6 @@ int WINAPI main()
     }
 
     g_process = GetCurrentProcess();
-
     g_unity_player_dll_base = GetModuleBaseAddress("UnityPlayer.dll");
     IC_ERROR_IF(g_unity_player_dll_base == 0, "Couldn't get module's base address");
 
@@ -302,21 +306,21 @@ int WINAPI main()
 
         if (g_instant_win || g_infinite_health)
         {
-            uintptr_t duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
-            if (duel_struct_address)
+            g_duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
+            if (g_duel_struct_address)
             {
                 if (g_instant_win)
-                    write_to_duel_struct(duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
+                    write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
                 if (g_infinite_health)
-                    write_to_duel_struct(duel_struct_address, damage_taken_offset, 0, [](uint8_t val){ return val > 0; });
+                    write_to_duel_struct(g_duel_struct_address, damage_taken_offset, 0, [](uint8_t val){ return val > 0; });
             }
         }
 
         if (!g_instant_win && previous_instant_win_value)
         {
-            uintptr_t duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
-            if (duel_struct_address)
-                write_to_duel_struct(duel_struct_address, damage_dealt_offset, 0, [](uint8_t val){ return val == 16; });
+            g_duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
+            if (g_duel_struct_address)
+                write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 0, [](uint8_t val){ return val == 16; });
         }
 
         previous_instant_win_value = g_instant_win;
