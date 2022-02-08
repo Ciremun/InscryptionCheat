@@ -17,17 +17,19 @@ struct File
 uintptr_t GetModuleBaseAddress(const char* modName);
 void GetErrorString(DWORD dwErr, CHAR wszMsgBuff[512]);
 int detour_32(void *src, void *dst, int len);
-File open_file(const char *path);
-LONGLONG get_file_size(HANDLE hFile);
-int close_file(HANDLE handle);
-int map_file(File *f);
-int unmap_file(File f);
-int unmap_and_close_file(File f);
 
+#ifndef NDEBUG
 #define IC_ERROR(message) fprintf(stderr, "Error: %s:%d: %s\n", __FUNCSIG__, __LINE__, message)
 #define IC_ERROR_FMT(fmt, ...) fprintf(stderr, "Error: %s:%d: " fmt "\n", __FUNCSIG__, __LINE__, __VA_ARGS__)
 #define IC_INFO(message) fprintf(stdout, "Info: %s\n", message)
 #define IC_INFO_FMT(fmt, ...) fprintf(stdout, "Info: " fmt "\n", __VA_ARGS__)
+#else
+#define DO_NOTHING do {} while(0)
+#define IC_ERROR(message)      DO_NOTHING
+#define IC_ERROR_FMT(fmt, ...) DO_NOTHING
+#define IC_INFO(message)       DO_NOTHING
+#define IC_INFO_FMT(fmt, ...)  DO_NOTHING
+#endif // NDEBUG
 
 #define IC_WINAPI_ERROR()\
 do\

@@ -1,3 +1,6 @@
+#include <windows.h>
+#include <tlhelp32.h>
+
 #include "ic_util.hpp"
 
 uintptr_t GetModuleBaseAddress(const char* modName)
@@ -51,59 +54,4 @@ int detour_32(void *src, void *dst, int len)
         return 0;
 
     return 1;
-}
-
-File open_file(const char *path)
-{
-    File f = {0};
-    f.handle = CreateFileA(path, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    if (f.handle == INVALID_HANDLE_VALUE)
-        return f;
-    return f;
-}
-
-LONGLONG get_file_size(HANDLE hFile)
-{
-    LARGE_INTEGER lpFileSize = {0};
-    IC_CHECK(GetFileSizeEx(hFile, &lpFileSize) != 0);
-    return lpFileSize.QuadPart;
-}
-
-int close_file(HANDLE handle)
-{
-    if (CloseHandle(handle) == 0)
-        return 0;
-    return 1;
-}
-
-int map_file(File *f)
-{
-    f->hMap = CreateFileMappingA(f->handle, 0, PAGE_READONLY, 0, 0, 0);
-    if (f->hMap == 0)
-    {
-        CloseHandle(f->handle);
-        return 0;
-    }
-    f->start = (uint8_t *)MapViewOfFile(f->hMap, FILE_MAP_READ, 0, 0, 0);
-    if (f->start == 0)
-    {
-        CloseHandle(f->hMap);
-        CloseHandle(f->handle);
-        return 0;
-    }
-    return 1;
-}
-
-int unmap_file(File f)
-{
-    if (UnmapViewOfFile(f.start) == 0)
-        return 0;
-    if (CloseHandle(f.hMap) == 0)
-        return 0;
-    return 1;
-}
-
-int unmap_and_close_file(File f)
-{
-    return unmap_file(f) && close_file(f.handle);
 }

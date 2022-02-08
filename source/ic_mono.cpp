@@ -12,6 +12,18 @@ void *get_BonesCost_code_start = 0;
 unsigned char infinite_health_original_bytes[] = { 0x89, 0x46, 0x10 };
 void *infinite_health_code_start = 0;
 
+// Instant Win
+unsigned char life_manager_ctor_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x18 };
+void *life_manager_ctor_code_start = 0;
+void *life_manager_ctor_jump_back = 0;
+void *life_manager_instance = 0;
+void *life_manager_vtable = 0;
+
+void print_life_manager_instance()
+{
+    IC_INFO_FMT("new life_manager_instance: 0x%X", (uintptr_t)life_manager_instance);
+}
+
 __declspec(naked) void return_zero_cost()
 {
     __asm {
@@ -20,9 +32,27 @@ __declspec(naked) void return_zero_cost()
     }
 }
 
+__declspec(naked) void snitch_life_manager_instance()
+{
+    __asm {
+        mov [life_manager_instance], ecx
+        call print_life_manager_instance
+        // original code
+        push ebp
+        mov ebp,esp
+        sub esp,0x18
+        // jump back
+        jmp [life_manager_ctor_jump_back]
+    }
+}
+
 void _cdecl find_code_starts(void *assembly, void *domain)
 {
-    if (get_BloodCost_code_start && get_BonesCost_code_start && infinite_health_code_start)
+    if (get_BloodCost_code_start     &&
+        get_BonesCost_code_start     &&
+        infinite_health_code_start   &&
+        life_manager_ctor_code_start &&
+        life_manager_vtable)
         return;
 
     const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
@@ -72,15 +102,37 @@ void _cdecl find_code_starts(void *assembly, void *domain)
             if (!ns[0])
             {
                 const char* name = mono_metadata_string_heap(image, cols[1]);
-                if (memcmp(name, "<ShowDamageSequence>d__23", 25) == 0)
+                if (!infinite_health_code_start &&
+                    memcmp(name, "<ShowDamageSequence>d__23", 25) == 0)
                 {
-                    void *class_ = mono_class_get(image, i + 1 | 0x02000000);
-                    infinite_health_code_start = get_code_start(domain, class_, "MoveNext");
-                    if (infinite_health_code_start)
-                        infinite_health_code_start = (void *)((uintptr_t)infinite_health_code_start + 0x2FF);
-                    IC_INFO_FMT("infinite_health_code_start: 0x%X", (uintptr_t)infinite_health_code_start);
+                    void *cls = mono_class_get(image, i + 1 | 0x02000000);
+                    if (!cls) return;
+                    void *code_start = get_code_start(domain, cls, "MoveNext");
+                    if (code_start)
+                        infinite_health_code_start = (void *)((uintptr_t)code_start + 0x2FF);
+                    IC_INFO_FMT("infinite_health_code_start: 0x%X",
+                        (uintptr_t)infinite_health_code_start);
                 }
             }
+            if (infinite_health_code_start)
+                break;
+        }
+    }
+
+    if (!life_manager_ctor_code_start || !life_manager_vtable)
+    {
+        void *lifemanager_class = mono_class_from_name_case(image, "DiskCardGame", "LifeManager");
+        if (!lifemanager_class) return;
+        if (!life_manager_ctor_code_start)
+        {
+            life_manager_ctor_code_start = get_code_start(domain, lifemanager_class, ".ctor");
+            life_manager_ctor_jump_back = (void *)((uintptr_t)life_manager_ctor_code_start + 6);
+            IC_INFO_FMT("life_manager_ctor_code_start: 0x%X", (uintptr_t)life_manager_ctor_code_start);
+        }
+        if (!life_manager_vtable)
+        {
+            life_manager_vtable = mono_class_vtable(domain, lifemanager_class);
+            IC_INFO_FMT("life manager vtable: 0x%X", (uintptr_t)life_manager_vtable);
         }
     }
 }
@@ -109,6 +161,7 @@ int init_mono()
     mono_metadata_decode_row        = (MONO_METADATA_DECODE_ROW)        GetProcAddress(hMono, "mono_metadata_decode_row");
     mono_metadata_string_heap       = (MONO_METADATA_STRING_HEAP)       GetProcAddress(hMono, "mono_metadata_string_heap");
     mono_class_get                  = (MONO_CLASS_GET)                  GetProcAddress(hMono, "mono_class_get");
+    mono_class_vtable               = (MONO_CLASS_VTABLE)               GetProcAddress(hMono, "mono_class_vtable");
 
     void* domain = mono_get_root_domain();
     if (!domain)

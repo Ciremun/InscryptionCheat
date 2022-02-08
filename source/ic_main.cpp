@@ -1,4 +1,3 @@
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #include "minhook/minhook.h"
@@ -11,7 +10,7 @@
 
 #include <stdint.h>
 
-#include "ic_core.hpp"
+#include "ic_memory.hpp"
 #include "ic_util.hpp"
 #include "ic_offsets.hpp"
 #include "ic_mono.hpp"
@@ -31,12 +30,7 @@ bool g_infinite_health = false;
 bool g_free_cards = false;
 
 uintptr_t g_unity_player_dll_base = 0;
-uintptr_t g_view_matrix_struct_address = 0;
-uintptr_t g_duel_struct_address = 0;
-
-extern void *get_BloodCost_code_start;
-extern void *get_BonesCost_code_start;
-extern void *infinite_health_code_start;
+uintptr_t g_view_matrix = 0;
 
 struct ViewMatrix
 {
@@ -168,18 +162,18 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 }
             };
 
-            ImGui::PushStyleColor(ImGuiCol_Text, g_instant_win ? IC_ENABLED : IC_DISABLED);
-            ImGui::Checkbox("Instant Win", &g_instant_win);
-            ImGui::PopStyleColor();
+            MaybeCheckbox("Instant Win", life_manager_ctor_code_start, g_instant_win, [](){
+                if (g_instant_win)
+                    detour_32(life_manager_ctor_code_start, snitch_life_manager_instance, sizeof(life_manager_ctor_original_bytes));
+                else
+                    memcpy(life_manager_ctor_code_start, life_manager_ctor_original_bytes, sizeof(life_manager_ctor_original_bytes));
+            });
 
             MaybeCheckbox("Infinite Health", infinite_health_code_start, g_infinite_health, [](){
-                static const unsigned char nops[] = { 0x90, 0x90, 0x90 };
                 if (g_infinite_health)
-                    IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, (void *)nops, sizeof(nops)),
-                        "Couldn't write infinite_health nops");
+                    memset(infinite_health_code_start, 0x90, sizeof(infinite_health_original_bytes));
                 else
-                    IC_ERROR_IF(!internal_memory_patch(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes)),
-                        "Couldn't write infinite_health_original_bytes");
+                    memcpy(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes));
             });
 
             MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, [](){
@@ -190,10 +184,8 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 }
                 else
                 {
-                    IC_ERROR_IF(!internal_memory_patch(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes)),
-                        "Couldn't write get_BloodCost_original_bytes");
-                    IC_ERROR_IF(!internal_memory_patch(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes)),
-                        "Couldn't write get_BonesCost_original_bytes");
+                    memcpy(get_BloodCost_code_start, get_BloodCost_original_bytes, sizeof(get_BloodCost_original_bytes));
+                    memcpy(get_BonesCost_code_start, get_BonesCost_original_bytes, sizeof(get_BonesCost_original_bytes));
                 }
             });
 
@@ -201,14 +193,14 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
         }
         if (ImGui::BeginTabItem("View Matrix"))
         {
-            if (g_view_matrix_struct_address)
+            if (g_view_matrix)
             {
-                ImGui::SliderFloat("X",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, x)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Y",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, y)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("Z",  (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, z)), -32.0f, 32.0f, "%.3f");
-                ImGui::SliderFloat("R1", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot)), -1.0f, 1.0f, "%.3f");
-                ImGui::SliderFloat("R2", (float *)(g_view_matrix_struct_address + offsetof(ViewMatrix, rot_2)), -1.0f, 1.0f, "%.3f");
-                ImGui::SliderFloat("R3", (float *)(g_view_matrix_struct_address + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("X",  (float *)(g_view_matrix + offsetof(ViewMatrix, x)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Y",  (float *)(g_view_matrix + offsetof(ViewMatrix, y)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("Z",  (float *)(g_view_matrix + offsetof(ViewMatrix, z)), -32.0f, 32.0f, "%.3f");
+                ImGui::SliderFloat("R1", (float *)(g_view_matrix + offsetof(ViewMatrix, rot)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R2", (float *)(g_view_matrix + offsetof(ViewMatrix, rot_2)), -1.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("R3", (float *)(g_view_matrix + view_matrix_rot_bottom_offset), -1.0f, 1.0f, "%.3f");
             }
             else
             {
@@ -231,11 +223,11 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
         if (ImGui::IsItemActivated())
         {
             // NOTE(Ciremun): struct base derived from Z address
-            g_view_matrix_struct_address =
+            g_view_matrix =
                 internal_multi_level_pointer_dereference(g_process, g_unity_player_dll_base + view_matrix_base_offset, view_matrix_struct_offsets);
-            if (g_view_matrix_struct_address)
-                g_view_matrix_struct_address -= 8;
-            IC_INFO_FMT("g_view_matrix_struct_address: 0x%X", g_view_matrix_struct_address);
+            if (g_view_matrix)
+                g_view_matrix -= 8;
+            IC_INFO_FMT("g_view_matrix: 0x%X", g_view_matrix);
         }
     }
 
@@ -290,44 +282,61 @@ int WINAPI main()
     g_unity_player_dll_base = GetModuleBaseAddress("UnityPlayer.dll");
     IC_ERROR_IF(g_unity_player_dll_base == 0, "Couldn't get module's base address");
 
-    int current_part = get_current_part(g_process);
-    int cycles = 0;
     bool previous_instant_win_value = g_instant_win;
 
     while (1)
     {
         if (!g_continue) break;
 
-        if (cycles == 300)
+        if (g_instant_win && !life_manager_instance && life_manager_vtable)
         {
-            current_part = get_current_part(g_process);
-            cycles = 0;
+            IC_INFO("scanning for life_manager_instance");
+            _MEMORY_BASIC_INFORMATION BasicInformation;
+            uintptr_t begin = 0x10000000;
+            while (VirtualQuery((void *)begin, &BasicInformation, sizeof(BasicInformation)) && begin < 0x60000000)
+            {
+                if (BasicInformation.State & MEM_COMMIT)
+                {
+                    unsigned char *block = (unsigned char *)malloc(BasicInformation.RegionSize);
+                    if (ReadProcessMemory(g_process, (void *)begin, block, BasicInformation.RegionSize, nullptr))
+                    {
+                        for (unsigned int i = 0; i != BasicInformation.RegionSize / 8; ++i)
+                        {
+                            uintptr_t *life_manager_ptr = (uintptr_t *)(block + i * 8);
+                            if (*life_manager_ptr == (uintptr_t)life_manager_vtable)
+                            {
+                                uintptr_t *m_CachedPtr   = (uintptr_t*)(begin + i * 8 + 0x8);
+                                uint32_t *playerDamage   = (uint32_t *)(begin + i * 8 + 0x10);
+                                uint32_t *opponentDamage = (uint32_t *)(begin + i * 8 + 0x14);
+                                if (*m_CachedPtr &&
+                                (0 <= *playerDamage   && *playerDamage   <= 16) &&
+                                (0 <= *opponentDamage && *opponentDamage <= 16))
+                                {
+                                    life_manager_instance = (void *)(begin + i * 8);
+                                    IC_INFO_FMT("life_manager_instance from scan: 0x%X", (uintptr_t)life_manager_instance);
+                                    free(block);
+                                    goto exit_scan;
+                                }
+                            }
+                        }
+                    }
+                    free(block);
+                }
+                begin = (uintptr_t)BasicInformation.BaseAddress + BasicInformation.RegionSize;
+            }
+            Sleep(1000);
         }
 
-        const auto write_to_duel_struct = [](uintptr_t duel_struct_addr, uintptr_t offset, uint8_t new_val, auto compare_func) {
-            uint8_t actual_val;
-            if (internal_memory_read(g_process, duel_struct_addr + offset, &actual_val)
-                && compare_func(actual_val))
-                internal_memory_write(duel_struct_addr + offset, &new_val);
-        };
+exit_scan:
 
-        if (g_instant_win)
-        {
-            g_duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
-            if (g_duel_struct_address && g_instant_win)
-                write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 16, [](uint8_t val){ return val != 16; });
-        }
+        if (g_instant_win && life_manager_instance)
+            *(uint32_t *)((uintptr_t)life_manager_instance + 0x14) = 16;
 
-        if (!g_instant_win && previous_instant_win_value)
-        {
-            g_duel_struct_address = get_current_duel_struct_address(g_process, g_unity_player_dll_base, current_part);
-            if (g_duel_struct_address)
-                write_to_duel_struct(g_duel_struct_address, damage_dealt_offset, 0, [](uint8_t val){ return val == 16; });
-        }
+        if (!g_instant_win && previous_instant_win_value && life_manager_instance)
+            *(uint32_t *)((uintptr_t)life_manager_instance + 0x14) = 0;
 
         previous_instant_win_value = g_instant_win;
         Sleep(200);
-        cycles++;
     }
 
     if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK) {
