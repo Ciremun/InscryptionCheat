@@ -5,12 +5,14 @@
 
 bool mono_initialized = false;
 
-unsigned char get_BloodCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
+// Free Cards
+unsigned char zero_cost_bytes[]          = { 0x31, 0xC0, 0xC3 };
+unsigned char zero_cost_original_bytes[] = { 0x55, 0x8B, 0xEC };
 void *get_BloodCost_code_start = 0;
-
-unsigned char get_BonesCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BonesCost_code_start = 0;
+void *get_EnergyCost_code_start = 0;
 
+// Inf Health
 unsigned char infinite_health_original_bytes[] = { 0x89, 0x46, 0x10 };
 void *infinite_health_code_start = 0;
 
@@ -24,14 +26,6 @@ void *life_manager_vtable = 0;
 void print_life_manager_instance()
 {
     IC_INFO_FMT("new life_manager_instance: 0x%X", (uintptr_t)life_manager_instance);
-}
-
-__declspec(naked) void return_zero_cost()
-{
-    __asm {
-        xor eax, eax
-        ret
-    }
 }
 
 __declspec(naked) void snitch_life_manager_instance()
@@ -54,6 +48,7 @@ void _cdecl find_code_starts(void *assembly, void *domain)
 {
     if (get_BloodCost_code_start     &&
         get_BonesCost_code_start     &&
+        get_EnergyCost_code_start    &&
         infinite_health_code_start   &&
         life_manager_ctor_code_start &&
         life_manager_vtable)
@@ -94,6 +89,12 @@ void _cdecl find_code_starts(void *assembly, void *domain)
         {
             get_BonesCost_code_start = get_code_start(domain, class_, "get_BonesCost");
             IC_INFO_FMT("get_BonesCost_code_start: 0x%X", (uintptr_t)get_BonesCost_code_start);
+        }
+
+        if (!get_EnergyCost_code_start)
+        {
+            get_EnergyCost_code_start = get_code_start(domain, class_, "get_EnergyCost");
+            IC_INFO_FMT("get_EnergyCost_code_start: 0x%X", (uintptr_t)get_EnergyCost_code_start);
         }
     }
 
