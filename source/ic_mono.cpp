@@ -3,6 +3,8 @@
 #include "ic_util.hpp"
 #include "ic_mono.hpp"
 
+bool mono_initialized = false;
+
 unsigned char get_BloodCost_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38 };
 void *get_BloodCost_code_start = 0;
 
@@ -53,7 +55,10 @@ void _cdecl find_code_starts(void *assembly, void *domain)
         infinite_health_code_start   &&
         life_manager_ctor_code_start &&
         life_manager_vtable)
+    {
+        mono_initialized = true;
         return;
+    }
 
     const auto get_code_start = [](void* domain, void* class_, char *method_name) -> void*
     {
@@ -181,5 +186,5 @@ int init_mono()
 
     mono_thread_detach(mono_selfthread);
 
-    return get_BloodCost_code_start != 0;
+    return mono_initialized;
 }
