@@ -305,7 +305,7 @@ int WINAPI main()
             uintptr_t end = 0x60000000;
             int alignment = 8;
             IC_INFO("scanning for life_manager_instance");
-            memory_scan(g_process, begin, end, alignment, [](uintptr_t begin, int alignment, unsigned char *block, int idx)
+            memory_scan(g_process, begin, end, alignment, [](uintptr_t begin, int alignment, unsigned char *block, unsigned int idx)
             {
                 uintptr_t *life_manager_ptr = (uintptr_t *)(block + idx * alignment);
                 if (*life_manager_ptr == (uintptr_t)life_manager_vtable)
