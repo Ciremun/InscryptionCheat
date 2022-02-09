@@ -38,7 +38,9 @@ __declspec(naked) void snitch_life_manager_instance()
 {
     __asm {
         mov [life_manager_instance], ecx
+#ifndef NDEBUG
         call print_life_manager_instance
+#endif // NDEBUG
         // original code
         push ebp
         mov ebp,esp
