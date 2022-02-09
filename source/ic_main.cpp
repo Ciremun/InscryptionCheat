@@ -164,7 +164,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 }
             };
 
-            MaybeCheckbox("Instant Win", life_manager_ctor_code_start && life_manager_vtable, g_instant_win, [](){
+            MaybeCheckbox("Instant Win", life_manager_ctor_code_start, g_instant_win, [](){
                 if (g_instant_win)
                 {
                     detour_32(life_manager_ctor_code_start, snitch_life_manager_instance, sizeof(life_manager_ctor_original_bytes));
@@ -297,7 +297,7 @@ int WINAPI main()
     {
         if (!g_continue) break;
 
-        if (g_scan_for_life_manager_instance)
+        if (g_scan_for_life_manager_instance && life_manager_vtable)
         {
             uintptr_t begin = 0x10000000;
             uintptr_t end = 0x60000000;
