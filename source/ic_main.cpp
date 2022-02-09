@@ -25,6 +25,8 @@ HINSTANCE dll_handle;
 HANDLE g_process;
 
 bool g_continue = true;
+bool g_scan_for_life_manager_instance = false;
+
 bool g_instant_win = false;
 bool g_infinite_health = false;
 bool g_free_cards = false;
@@ -162,21 +164,28 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                 }
             };
 
-            MaybeCheckbox("Instant Win", life_manager_ctor_code_start, g_instant_win, [](){
+            MaybeCheckbox("Instant Win", life_manager_ctor_code_start && life_manager_vtable, g_instant_win, [](){
                 if (g_instant_win)
+                {
                     detour_32(life_manager_ctor_code_start, snitch_life_manager_instance, sizeof(life_manager_ctor_original_bytes));
+                    g_scan_for_life_manager_instance = true;
+                }
                 else
+                {
                     memcpy(life_manager_ctor_code_start, life_manager_ctor_original_bytes, sizeof(life_manager_ctor_original_bytes));
+                }
             });
 
-            MaybeCheckbox("Infinite Health", infinite_health_code_start, g_infinite_health, [](){
+            MaybeCheckbox("Infinite Health", infinite_health_code_start, g_infinite_health, []()
+            {
                 if (g_infinite_health)
                     memset(infinite_health_code_start, 0x90, sizeof(infinite_health_original_bytes));
                 else
                     memcpy(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes));
             });
 
-            MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, [](){
+            MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, []()
+            {
                 if (g_free_cards)
                 {
                     detour_32(get_BloodCost_code_start, return_zero_cost, sizeof(get_BloodCost_original_bytes));
@@ -288,46 +297,33 @@ int WINAPI main()
     {
         if (!g_continue) break;
 
-        if (g_instant_win && !life_manager_instance && life_manager_vtable)
+        if (g_scan_for_life_manager_instance)
         {
-            IC_INFO("scanning for life_manager_instance");
-            _MEMORY_BASIC_INFORMATION BasicInformation;
             uintptr_t begin = 0x10000000;
-            while (VirtualQuery((void *)begin, &BasicInformation, sizeof(BasicInformation)) && begin < 0x60000000)
+            uintptr_t end = 0x60000000;
+            int alignment = 8;
+            IC_INFO("scanning for life_manager_instance");
+            memory_scan(g_process, begin, end, alignment, [](uintptr_t begin, int alignment, unsigned char *block, int idx)
             {
-                if (BasicInformation.State & MEM_COMMIT)
+                uintptr_t *life_manager_ptr = (uintptr_t *)(block + idx * alignment);
+                if (*life_manager_ptr == (uintptr_t)life_manager_vtable)
                 {
-                    unsigned char *block = (unsigned char *)malloc(BasicInformation.RegionSize);
-                    if (ReadProcessMemory(g_process, (void *)begin, block, BasicInformation.RegionSize, nullptr))
+                    uintptr_t *m_CachedPtr   = (uintptr_t*)(begin + idx * alignment + 0x8);
+                    uint32_t *playerDamage   = (uint32_t *)(begin + idx * alignment + 0x10);
+                    uint32_t *opponentDamage = (uint32_t *)(begin + idx * alignment + 0x14);
+                    if (*m_CachedPtr      &&
+                    (0 <= *playerDamage   && *playerDamage   <= 16) &&
+                    (0 <= *opponentDamage && *opponentDamage <= 16))
                     {
-                        for (unsigned int i = 0; i != BasicInformation.RegionSize / 8; ++i)
-                        {
-                            uintptr_t *life_manager_ptr = (uintptr_t *)(block + i * 8);
-                            if (*life_manager_ptr == (uintptr_t)life_manager_vtable)
-                            {
-                                uintptr_t *m_CachedPtr   = (uintptr_t*)(begin + i * 8 + 0x8);
-                                uint32_t *playerDamage   = (uint32_t *)(begin + i * 8 + 0x10);
-                                uint32_t *opponentDamage = (uint32_t *)(begin + i * 8 + 0x14);
-                                if (*m_CachedPtr &&
-                                (0 <= *playerDamage   && *playerDamage   <= 16) &&
-                                (0 <= *opponentDamage && *opponentDamage <= 16))
-                                {
-                                    life_manager_instance = (void *)(begin + i * 8);
-                                    IC_INFO_FMT("life_manager_instance from scan: 0x%X", (uintptr_t)life_manager_instance);
-                                    free(block);
-                                    goto exit_scan;
-                                }
-                            }
-                        }
+                        life_manager_instance = (void *)(begin + idx * alignment);
+                        IC_INFO_FMT("life_manager_instance from scan: 0x%X", (uintptr_t)life_manager_instance);
+                        return true;
                     }
-                    free(block);
                 }
-                begin = (uintptr_t)BasicInformation.BaseAddress + BasicInformation.RegionSize;
-            }
-            Sleep(1000);
+                return false;
+            });
+            g_scan_for_life_manager_instance = false;
         }
-
-exit_scan:
 
         if (g_instant_win && life_manager_instance)
             *(uint32_t *)((uintptr_t)life_manager_instance + 0x14) = 16;

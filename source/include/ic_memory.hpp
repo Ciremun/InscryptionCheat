@@ -35,3 +35,29 @@ uintptr_t internal_multi_level_pointer_dereference(HANDLE hProc, uintptr_t base,
     }
     return base;
 }
+
+template <typename T>
+void memory_scan(HANDLE hProc, uintptr_t begin, uintptr_t end, int alignment, T body)
+{
+    _MEMORY_BASIC_INFORMATION BasicInformation;
+    while (VirtualQuery((void *)begin, &BasicInformation, sizeof(BasicInformation)) && begin < end)
+    {
+        if (BasicInformation.State & MEM_COMMIT)
+        {
+            unsigned char *block = (unsigned char *)malloc(BasicInformation.RegionSize);
+            if (ReadProcessMemory(hProc, (void *)begin, block, BasicInformation.RegionSize, nullptr))
+            {
+                for (unsigned int idx = 0; idx != BasicInformation.RegionSize / alignment; ++idx)
+                {
+                   if (body(begin, alignment, block, idx))
+                   {
+                        free(block);
+                        return;
+                   }
+                }
+            }
+            free(block);
+        }
+        begin = (uintptr_t)BasicInformation.BaseAddress + BasicInformation.RegionSize;
+    }
+}
