@@ -184,7 +184,7 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                     memcpy(infinite_health_code_start, infinite_health_original_bytes, sizeof(infinite_health_original_bytes));
             });
 
-            MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start, g_free_cards, []()
+            MaybeCheckbox("Free Cards", get_BloodCost_code_start && get_BonesCost_code_start && get_EnergyCost_code_start, g_free_cards, []()
             {
                 if (g_free_cards)
                 {
