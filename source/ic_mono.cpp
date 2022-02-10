@@ -5,6 +5,13 @@
 
 bool mono_initialized = false;
 
+// Immortal Cards, One Hit Kill
+unsigned char playable_card_compare_original_bytes[] = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x28 };
+void *playable_card_die_code_start = 0;
+void *playable_card_die_jump_back = 0;
+void *playable_card_take_damage_code_start = 0;
+void *playable_card_take_damage_jump_back = 0;
+
 // Free Cards
 unsigned char zero_cost_bytes[]          = { 0x31, 0xC0, 0xC3 };
 unsigned char zero_cost_original_bytes[] = { 0x55, 0x8B, 0xEC };
@@ -28,6 +35,37 @@ void print_life_manager_instance()
     IC_INFO_FMT("new life_manager_instance: 0x%X", (uintptr_t)life_manager_instance);
 }
 
+__declspec(naked) void one_hit_kill()
+{
+    __asm {
+        mov ecx, [esp+0x4]
+        cmp byte ptr [ecx+0x58], 01
+        jne original_code
+        mov ecx, [ecx+0x68]
+        mov [esp+0x8], ecx
+        original_code:
+        push ebp
+        mov ebp, esp
+        sub esp, 0x28
+        jmp [playable_card_take_damage_jump_back]
+    }
+}
+
+__declspec(naked) void immortal_cards()
+{
+    __asm {
+        mov ecx, [esp+0x4]
+        cmp byte ptr [ecx+0x58], 01
+        je original_code
+        ret
+        original_code:
+        push ebp
+        mov ebp, esp
+        sub esp, 0x28
+        jmp [playable_card_die_jump_back]
+    }
+}
+
 __declspec(naked) void snitch_life_manager_instance()
 {
     __asm {
@@ -46,11 +84,13 @@ __declspec(naked) void snitch_life_manager_instance()
 
 void _cdecl find_code_starts(void *assembly, void *domain)
 {
-    if (get_BloodCost_code_start     &&
-        get_BonesCost_code_start     &&
-        get_EnergyCost_code_start    &&
-        infinite_health_code_start   &&
-        life_manager_ctor_code_start &&
+    if (get_BloodCost_code_start             &&
+        get_BonesCost_code_start             &&
+        get_EnergyCost_code_start            &&
+        infinite_health_code_start           &&
+        life_manager_ctor_code_start         &&
+        playable_card_die_code_start         &&
+        playable_card_take_damage_code_start &&
         life_manager_vtable)
     {
         mono_initialized = true;
@@ -117,13 +157,14 @@ void _cdecl find_code_starts(void *assembly, void *domain)
                     if (!cls) return;
                     void *code_start = get_code_start(domain, cls, "MoveNext");
                     if (code_start)
+                    {
                         infinite_health_code_start = (void *)((uintptr_t)code_start + 0x2FF);
-                    IC_INFO_FMT("infinite_health_code_start: 0x%X",
-                        (uintptr_t)infinite_health_code_start);
+                        IC_INFO_FMT("infinite_health_code_start: 0x%X",
+                            (uintptr_t)infinite_health_code_start);
+                        break;
+                    }
                 }
             }
-            if (infinite_health_code_start)
-                break;
         }
     }
 
@@ -141,6 +182,26 @@ void _cdecl find_code_starts(void *assembly, void *domain)
         {
             life_manager_vtable = mono_class_vtable(domain, lifemanager_class);
             IC_INFO_FMT("life manager vtable: 0x%X", (uintptr_t)life_manager_vtable);
+        }
+    }
+
+    if (!playable_card_take_damage_code_start || !playable_card_die_code_start)
+    {
+        void *playable_card_class = mono_class_from_name_case(image, "DiskCardGame", "PlayableCard");
+        if (!playable_card_class) return;
+        if (!playable_card_take_damage_code_start)
+        {
+            playable_card_take_damage_code_start = get_code_start(domain, playable_card_class, "TakeDamage");
+            playable_card_take_damage_jump_back = (void *)((uintptr_t)playable_card_take_damage_code_start + 6);
+            IC_INFO_FMT("playable_card_take_damage_code_start: 0x%X",
+                (uintptr_t)playable_card_take_damage_code_start);
+        }
+        if (!playable_card_die_code_start)
+        {
+            playable_card_die_code_start = get_code_start(domain, playable_card_class, "Die");
+            playable_card_die_jump_back = (void *)((uintptr_t)playable_card_die_code_start + 6);
+            IC_INFO_FMT("playable_card_die_code_start: 0x%X",
+                (uintptr_t)playable_card_die_code_start);
         }
     }
 }

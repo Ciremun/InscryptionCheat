@@ -30,6 +30,8 @@ bool g_scan_for_life_manager_instance = false;
 bool g_instant_win = false;
 bool g_infinite_health = false;
 bool g_free_cards = false;
+bool g_immortal_cards = false;
+bool g_one_hit_kill = false;
 
 uintptr_t g_unity_player_dll_base = 0;
 uintptr_t g_view_matrix = 0;
@@ -198,6 +200,22 @@ static long __stdcall detour_present(IDXGISwapChain* p_swap_chain, UINT sync_int
                     memcpy(get_EnergyCost_code_start, zero_cost_original_bytes, sizeof(zero_cost_original_bytes));
                     memcpy(get_BonesCost_code_start, zero_cost_original_bytes, sizeof(zero_cost_original_bytes));
                 }
+            });
+
+            MaybeCheckbox("Immortal Cards", playable_card_die_code_start, g_immortal_cards, []()
+            {
+                if (g_immortal_cards)
+                    detour_32(playable_card_die_code_start, immortal_cards, sizeof(playable_card_compare_original_bytes));
+                else
+                    memcpy(playable_card_die_code_start, playable_card_compare_original_bytes, sizeof(playable_card_compare_original_bytes));
+            });
+
+            MaybeCheckbox("One Hit Kill", playable_card_take_damage_code_start, g_one_hit_kill, []()
+            {
+                if (g_one_hit_kill)
+                    detour_32(playable_card_take_damage_code_start, one_hit_kill, sizeof(playable_card_compare_original_bytes));
+                else
+                    memcpy(playable_card_take_damage_code_start, playable_card_compare_original_bytes, sizeof(playable_card_compare_original_bytes));
             });
 
             ImGui::EndTabItem();
