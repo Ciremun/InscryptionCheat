@@ -5,14 +5,14 @@ jobs:
   windows-msvc:
     runs-on: windows-latest
     steps:
-      inputs:
-        arch: 'x86'
       - uses: actions/checkout@v2
       - uses: seanmiddleditch/gha-setup-vsdevenv@master
       - name: build
         shell: cmd
         run: |
           build.bat && tar -acf ic.zip ic.exe ic.dll
+        env:
+          arch: 'x86'
       - name: upload
         uses: actions/upload-artifact@v3
         with:
