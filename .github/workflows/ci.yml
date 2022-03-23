@@ -1,14 +1,12 @@
 name: CI
 on: [push, pull_request, workflow_dispatch]
 
-name: urmom
-inputs:
-  arch: 'x86'
-
 jobs:
   windows-msvc:
     runs-on: windows-latest
     steps:
+      inputs:
+        arch: 'x86'
       - uses: actions/checkout@v2
       - uses: seanmiddleditch/gha-setup-vsdevenv@master
       - name: build
