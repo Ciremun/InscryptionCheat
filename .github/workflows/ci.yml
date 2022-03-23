@@ -12,7 +12,7 @@ jobs:
         run: |
           build.bat && tar -acf ic.zip ic.exe ic.dll
       - name: upload
-      - uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           name: ic
           path: |
