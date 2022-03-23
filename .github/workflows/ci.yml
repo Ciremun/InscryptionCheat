@@ -14,7 +14,8 @@ jobs:
       - name: upload
         uses: actions/upload-artifact@v3
         with:
-          arch: x86
+          inputs:
+            arch: x86
           name: ic
           path: |
             ic.zip
