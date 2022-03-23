@@ -12,10 +12,11 @@ jobs:
       - name: build
         shell: cmd
         run: |
-          build.bat && tar -acf ic.zip ic.exe ic.dll
+          build.bat
       - name: upload
         uses: actions/upload-artifact@v3
         with:
           name: ic
           path: |
-            ic.zip
+            ic.exe
+            ic.dll
