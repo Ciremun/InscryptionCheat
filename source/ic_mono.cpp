@@ -20,7 +20,7 @@ void *get_BonesCost_code_start = 0;
 void *get_EnergyCost_code_start = 0;
 
 // Inf Health
-unsigned char infinite_health_original_bytes[] = { 0x89, 0x46, 0x10 };
+unsigned char infinite_health_original_bytes[] = { 0x8B, 0x46, 0x10 };
 void *infinite_health_code_start = 0;
 
 // Instant Win
@@ -158,7 +158,7 @@ void _cdecl find_code_starts(void *assembly, void *domain)
                     void *code_start = get_code_start(domain, cls, "MoveNext");
                     if (code_start)
                     {
-                        infinite_health_code_start = (void *)((uintptr_t)code_start + 0x2FF);
+                        infinite_health_code_start = (void *)((uintptr_t)code_start + 0x303);
                         IC_INFO_FMT("infinite_health_code_start: 0x%X",
                             (uintptr_t)infinite_health_code_start);
                         break;
